@@ -17,7 +17,10 @@ env/
 
 # Environment
 .env
-.env.*
+.env.local
+
+# Keep example env tracked
+!.env.example
 
 # OS
 .DS_Store
