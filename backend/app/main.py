@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 
 from app.database import Base, engine
+from app.providers.eonet.routes import router as eonet_router
 from app.replay.routes import router as replay_router
 
-app = FastAPI(title="Crisis Lens", version="0.1.0")
+app = FastAPI(title="Crisis Lens", version="0.2.0")
 
 
 @app.on_event("startup")
@@ -17,3 +18,4 @@ def health():
 
 
 app.include_router(replay_router)
+app.include_router(eonet_router)

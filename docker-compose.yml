@@ -24,7 +24,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
     volumes:
-      - ./data:/app/data:ro
+      - ./data:/app/data
     depends_on:
       db:
         condition: service_healthy

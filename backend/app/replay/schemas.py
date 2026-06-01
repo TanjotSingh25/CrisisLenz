@@ -19,10 +19,21 @@ class ReplaySignalOut(BaseModel):
     release_order: int | None
     released_at: datetime | None
     processed_at: datetime | None
+    latitude: float | None
+    longitude: float | None
+    event_category: str | None
+    event_status: str | None
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class SourceTypeStatusCounts(BaseModel):
+    pending: int = 0
+    released: int = 0
+    processed: int = 0
+    rejected: int = 0
 
 
 class StatusResponse(BaseModel):
@@ -31,10 +42,16 @@ class StatusResponse(BaseModel):
     released: int
     processed: int
     rejected: int
+    by_source_type: dict[str, SourceTypeStatusCounts] = {}
 
 
 class LoadRequest(BaseModel):
     reset_existing: bool = True
+
+
+class LoadEonetRequest(BaseModel):
+    snapshot_filename: str | None = None  # uses latest if omitted
+    replace_existing: bool = True  # clears existing eonet_event records before loading
 
 
 class LoadResponse(BaseModel):
