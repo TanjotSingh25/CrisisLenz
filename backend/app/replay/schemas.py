@@ -45,13 +45,9 @@ class StatusResponse(BaseModel):
     by_source_type: dict[str, SourceTypeStatusCounts] = {}
 
 
-class LoadRequest(BaseModel):
-    reset_existing: bool = True
-
-
 class LoadEonetRequest(BaseModel):
-    snapshot_filename: str | None = None  # uses latest if omitted
-    replace_existing: bool = True  # clears existing eonet_event records before loading
+    snapshot_filename: str | None = None
+    replace_existing: bool = True
 
 
 class LoadResponse(BaseModel):

@@ -11,10 +11,11 @@ from app.replay.models import ReplaySignal
 REPLAY_FILE = Path("/app/data/replay/final_replay_signals.json")
 
 
-def load_signals(db: Session, reset_existing: bool = True) -> int:
-    if reset_existing:
-        db.query(ReplaySignal).delete()
-        db.commit()
+def seed_wikinews_if_empty(db: Session) -> int:
+    """Seed Wikinews signals from the JSON file on first startup. No-op if already seeded."""
+    existing = db.query(ReplaySignal).filter(ReplaySignal.source_type == "wikinews_dump").count()
+    if existing > 0:
+        return 0
 
     with open(REPLAY_FILE, "r", encoding="utf-8") as f:
         records = json.load(f)
@@ -82,7 +83,6 @@ def load_eonet_signals(db: Session, normalized: list[dict], replace_existing: bo
 
 
 def get_status(db: Session) -> dict:
-    # Global counts
     global_rows = (
         db.query(ReplaySignal.status, func.count(ReplaySignal.id))
         .group_by(ReplaySignal.status)
@@ -90,7 +90,6 @@ def get_status(db: Session) -> dict:
     )
     counts = {row[0]: row[1] for row in global_rows}
 
-    # Per-source-type counts
     src_rows = (
         db.query(ReplaySignal.source_type, ReplaySignal.status, func.count(ReplaySignal.id))
         .group_by(ReplaySignal.source_type, ReplaySignal.status)
@@ -115,10 +114,7 @@ def get_status(db: Session) -> dict:
 
 
 def release_next(db: Session, source_type: str | None = None) -> ReplaySignal:
-    query = (
-        db.query(ReplaySignal)
-        .filter(ReplaySignal.status == "pending")
-    )
+    query = db.query(ReplaySignal).filter(ReplaySignal.status == "pending")
     if source_type:
         query = query.filter(ReplaySignal.source_type == source_type)
 
@@ -146,17 +142,14 @@ def get_signals_by_status(
     return query.order_by(ReplaySignal.release_order).all()
 
 
-def reset_all(db: Session) -> int:
-    count = db.query(ReplaySignal).update(
+def reset_signals(db: Session, source_type: str | None = None) -> int:
+    """Reset signal statuses back to pending. Optionally filter by source_type."""
+    query = db.query(ReplaySignal)
+    if source_type:
+        query = query.filter(ReplaySignal.source_type == source_type)
+    count = query.update(
         {"status": "pending", "released_at": None, "processed_at": None},
         synchronize_session=False,
     )
-    db.commit()
-    return count
-
-
-def clear_all(db: Session) -> int:
-    count = db.query(ReplaySignal).count()
-    db.query(ReplaySignal).delete()
     db.commit()
     return count

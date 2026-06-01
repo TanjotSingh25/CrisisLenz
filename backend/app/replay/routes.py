@@ -5,7 +5,6 @@ from app.database import get_db
 from app.replay import service
 from app.replay.schemas import (
     LoadEonetRequest,
-    LoadRequest,
     LoadResponse,
     MessageResponse,
     ReplaySignalOut,
@@ -13,12 +12,6 @@ from app.replay.schemas import (
 )
 
 router = APIRouter(prefix="/replay", tags=["replay"])
-
-
-@router.post("/load", response_model=LoadResponse)
-def load_replay(body: LoadRequest = LoadRequest(), db: Session = Depends(get_db)):
-    count = service.load_signals(db, reset_existing=body.reset_existing)
-    return LoadResponse(loaded=count)
 
 
 @router.post("/load-eonet", response_model=LoadResponse)
@@ -73,12 +66,10 @@ def list_pending(
 
 
 @router.post("/reset", response_model=MessageResponse)
-def reset_replay(db: Session = Depends(get_db)):
-    count = service.reset_all(db)
-    return MessageResponse(message=f"Reset {count} signals to pending.")
-
-
-@router.delete("/clear", response_model=MessageResponse)
-def clear_replay(db: Session = Depends(get_db)):
-    count = service.clear_all(db)
-    return MessageResponse(message=f"Cleared {count} signals from the table.")
+def reset_replay(
+    source_type: str | None = Query(default=None, description="Reset only this source_type. Omit to reset all."),
+    db: Session = Depends(get_db),
+):
+    count = service.reset_signals(db, source_type=source_type)
+    label = f"source_type='{source_type}'" if source_type else "all sources"
+    return MessageResponse(message=f"Reset {count} signals to pending ({label}).")
