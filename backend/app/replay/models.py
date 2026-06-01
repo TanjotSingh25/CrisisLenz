@@ -33,5 +33,6 @@ class ReplaySignal(Base):
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     event_category: Mapped[str | None] = mapped_column(String(100), nullable=True)
     event_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    processing_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
