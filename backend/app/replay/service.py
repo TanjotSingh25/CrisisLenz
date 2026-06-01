@@ -1,48 +1,9 @@
-import json
-from pathlib import Path
-
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.common.errors import not_found
 from app.common.timestamps import parse_datetime, utcnow
 from app.replay.models import ReplaySignal
-
-REPLAY_FILE = Path("/app/data/replay/final_replay_signals.json")
-
-
-def seed_wikinews_if_empty(db: Session) -> int:
-    """Seed Wikinews signals from the JSON file on first startup. No-op if already seeded."""
-    existing = db.query(ReplaySignal).filter(ReplaySignal.source_type == "wikinews_dump").count()
-    if existing > 0:
-        return 0
-
-    with open(REPLAY_FILE, "r", encoding="utf-8") as f:
-        records = json.load(f)
-
-    signals = [
-        ReplaySignal(
-            source_type=r.get("source_type"),
-            source_name=r.get("source_name"),
-            title=r.get("title"),
-            published_at=parse_datetime(r.get("published_at")),
-            summary=r.get("summary"),
-            body=r.get("body"),
-            language=r.get("language"),
-            url=r.get("url"),
-            filter_score=r.get("filter_score"),
-            category_hint=r.get("category_hint"),
-            matched_keywords=r.get("matched_keywords"),
-            status="pending",
-            release_order=idx,
-            raw_payload=r,
-        )
-        for idx, r in enumerate(records)
-    ]
-
-    db.add_all(signals)
-    db.commit()
-    return len(signals)
 
 
 def load_eonet_signals(db: Session, normalized: list[dict], replace_existing: bool = True) -> int:
@@ -114,14 +75,22 @@ def get_status(db: Session) -> dict:
 
 
 def release_next(db: Session, source_type: str | None = None) -> ReplaySignal:
-    query = db.query(ReplaySignal).filter(ReplaySignal.status == "pending")
-    if source_type:
-        query = query.filter(ReplaySignal.source_type == source_type)
+    def _next_pending() -> ReplaySignal | None:
+        q = db.query(ReplaySignal).filter(ReplaySignal.status == "pending")
+        if source_type:
+            q = q.filter(ReplaySignal.source_type == source_type)
+        return q.order_by(ReplaySignal.release_order).with_for_update(skip_locked=True).first()
 
-    signal = query.order_by(ReplaySignal.release_order).with_for_update(skip_locked=True).first()
+    signal = _next_pending()
 
-    if not signal:
-        detail = "No pending signals remain"
+    if signal is None:
+        # All signals exhausted — auto-reset and cycle from the beginning
+        reset_signals(db, source_type=source_type)
+        signal = _next_pending()
+
+    if signal is None:
+        # No signals exist at all for this source_type
+        detail = "No signals found in the database"
         if source_type:
             detail += f" for source_type '{source_type}'"
         raise not_found(detail + ".")

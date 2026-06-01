@@ -45,14 +45,5 @@ class StatusResponse(BaseModel):
     by_source_type: dict[str, SourceTypeStatusCounts] = {}
 
 
-class LoadEonetRequest(BaseModel):
-    snapshot_filename: str | None = None
-    replace_existing: bool = True
-
-
-class LoadResponse(BaseModel):
-    loaded: int
-
-
 class MessageResponse(BaseModel):
     message: str

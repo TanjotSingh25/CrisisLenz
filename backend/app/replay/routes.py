@@ -1,39 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.replay import service
 from app.replay.schemas import (
-    LoadEonetRequest,
-    LoadResponse,
     MessageResponse,
     ReplaySignalOut,
     StatusResponse,
 )
 
 router = APIRouter(prefix="/replay", tags=["replay"])
-
-
-@router.post("/load-eonet", response_model=LoadResponse)
-def load_eonet(body: LoadEonetRequest = LoadEonetRequest(), db: Session = Depends(get_db)):
-    from app.providers.eonet import normalizer, snapshot_service
-
-    filename = body.snapshot_filename or snapshot_service.latest_snapshot()
-    if not filename:
-        raise HTTPException(
-            status_code=404,
-            detail="No EONET snapshots found. Fetch one first via POST /eonet/fetch-snapshot.",
-        )
-
-    try:
-        raw_data = snapshot_service.load_snapshot(filename)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-    events = raw_data.get("events", [])
-    normalized = [normalizer.normalize_event(e) for e in events]
-    count = service.load_eonet_signals(db, normalized, replace_existing=body.replace_existing)
-    return LoadResponse(loaded=count)
 
 
 @router.get("/status", response_model=StatusResponse)
