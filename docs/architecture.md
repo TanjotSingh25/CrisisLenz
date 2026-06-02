@@ -37,6 +37,9 @@ Rejected → signal marked rejected
 | `replay_signals` | All incoming signals (Wikinews + EONET), lifecycle tracked via `status` |
 | `ai_analyses` | Raw + validated Gemini output, one row per analysis call |
 | `events` | Accepted structured events, derived from AI analysis |
+| `clients` | Fictional demo client organisations |
+| `client_assets` | Client locations with lat/lon and criticality |
+| `event_asset_impacts` | Impact matches between events and client assets |
 
 **`alembic_version`** tracks which migrations have run.
 
@@ -160,57 +163,64 @@ replay_signals  (source_type = "eonet_event")
 
 ### What It Does
 
-Takes a released signal, sends it to Gemini with structured prompts, validates the response, and either creates an `Event` record (if operationally relevant) or marks the signal `rejected` (if noise).
+Accepts any signal payload, sends it to Gemini live, validates the structured response, and either creates an `Event` record (operationally relevant) or rejects the signal (noise). Returns the full AI output — including business impact and recommended action — in the immediate response.
+
+The simulator (Module 1) is entirely separate from this pipeline. The simulator is just one source. In production, a live API connector would call the same endpoint.
 
 ### Data Flow
 
 ```
-POST /ai/analyze-signal/{id}
+POST /signals/ingest  (primary — accepts any JSON)
+POST /replay/release-and-analyze  (demo — release_next() then ingest_signal())
       ↓
-app/ai/routes.py
-  — validates signal exists and is "released"
-      ↓
-app/signals/processing.py :: process_signal(db, signal)
-  — converts ORM object → plain dict (no ORM in AI layer)
+app/signals/processing.py :: ingest_signal(db, signal_data, replay_signal=None)
+  — replay_signal is optional; only provided when signal came from the simulator
       ↓
 app/ai/analysis_service.py :: analyze_signal(signal_dict)
-  — loads system prompt from app/prompts/signal_analysis_system.md
-  — builds user prompt from app/prompts/signal_analysis_user_template.md
-    (replaces {{placeholders}}, truncates body to 6000 chars)
+  — loads app/prompts/signal_analysis_system.md       (system prompt)
+  — loads app/prompts/signal_analysis_user_template.md (fills {{placeholders}})
+  — truncates body to 6000 chars
       ↓
 app/ai/gemini_client.py :: GeminiClient.analyze_signal(system, user)
-  — calls google-genai SDK
-  — model: gemini-2.5-flash (configurable via GEMINI_MODEL)
-  — response_mime_type: "application/json" (forces JSON output)
+  — google-genai SDK, model: gemini-2.5-flash (env: GEMINI_MODEL)
+  — response_mime_type: "application/json" → forces structured output
       ↓
-Gemini API (live call)
+Gemini API  (live call)
       ↓
-app/ai/schemas.py :: SignalAnalysisResult.model_validate_json(raw_text)
-  — validates all required fields, types, and value ranges
+SignalAnalysisResult.model_validate_json(raw_text)  ← Pydantic validates
       ↓
 back in processing.py:
+  ALWAYS  → create_ai_analysis()   INSERT into ai_analyses
 
-  if is_event_worthy = true:
-    app/events/service.py :: create_ai_analysis()  → INSERT into ai_analyses
-    app/events/service.py :: create_event()         → INSERT into events
-    signal.status = "processed"
+  accepted → create_event()        INSERT into events
+             signal.status = "processed"   (if from simulator)
 
-  if is_event_worthy = false:
-    app/events/service.py :: create_ai_analysis()  → INSERT into ai_analyses
-    signal.status = "rejected"
+  rejected → signal.status = "rejected"   (if from simulator)
 
-  if exception:
-    signal.status = "failed"
-    signal.processing_error = str(exc)[:500]
+  error    → signal.status = "failed", signal.processing_error set
       ↓
-AnalysisResponse returned to caller
+AnalysisResponse  (returned immediately, includes all AI output fields)
 ```
+
+### Simulator / Pipeline Boundary
+
+```
+SIMULATOR (demo only)               PIPELINE (the real product)
+────────────────────                ──────────────────────────────
+replay_signals table                POST /signals/ingest
+POST /replay/next                     only title is required
+  → returns signal JSON               any source can call it
+       │
+       │  for demo convenience
+       └──► POST /replay/release-and-analyze
+              = release_next() + ingest_signal() in one call
+```
+
+`replay_signal_id` in `ai_analyses` and `events` is nullable — signals via direct ingest have no simulator record, which is fine.
 
 ### Module Boundaries
 
-The AI layer (`app/ai/`) has **zero database dependencies** — it only knows about dicts and Pydantic models. This makes it portable to other projects.
-
-The integration glue (`app/signals/processing.py`) owns the DB side: it translates ORM objects to dicts before passing to AI, and saves results after.
+The AI layer (`app/ai/`) has zero database imports — portable to other projects.
 
 ```
 ┌─────────────────────────────────┐
@@ -224,22 +234,21 @@ The integration glue (`app/signals/processing.py`) owns the DB side: it translat
              │  dict in / SignalAnalysisResult out
 ┌────────────▼────────────────────┐
 │  app/signals/processing.py      │
-│  (Crisis Lens specific)         │
 │  — ORM ↔ dict conversion        │
-│  — DB saves                     │
-│  — status updates               │
+│  — DB saves (ai_analyses/events)│
+│  — signal status updates        │
 └─────────────────────────────────┘
 ```
 
-### Prompt Files
+### Prompt Files (`backend/app/prompts/`)
 
-**`signal_analysis_system.md`** — defines the analyst role and accept/reject criteria. Edit this to tune what Gemini considers operationally relevant.
+**`signal_analysis_system.md`** — analyst role and accept/reject criteria. Edit to tune what counts as operationally relevant.
 
-**`signal_analysis_user_template.md`** — the per-signal prompt. Uses `{{placeholder}}` syntax. Edit this to change what fields Gemini sees or how they're presented.
+**`signal_analysis_user_template.md`** — per-signal prompt with `{{placeholder}}` fields. Edit to change what Gemini sees.
 
-Both files are in `backend/app/prompts/`. No code change needed to edit them — just save the file and restart.
+No code change needed — save the file and restart the container.
 
-### Gemini Output Schema (`SignalAnalysisResult`)
+### What Gemini Returns (`SignalAnalysisResult`)
 
 ```json
 {
@@ -249,31 +258,32 @@ Both files are in `backend/app/prompts/`. No code change needed to edit them —
   "severity": "high",
   "confidence": 0.91,
   "title": "Wildfire near Blaine County, Idaho",
-  "summary": "Active wildfire with known coordinates, potential regional disruption.",
+  "summary": "Active wildfire with known coordinates and potential regional disruption.",
   "location_name": "Blaine County, Idaho, United States",
   "latitude": 42.67045,
   "longitude": -113.248133,
   "business_impact": "Potential disruption to local travel and nearby facilities.",
-  "recommended_action": "Monitor fire spread, check asset exposure, prepare contingencies.",
-  "reasoning_brief": "EONET event with coordinates and active open status."
+  "recommended_action": "Monitor fire spread, check asset exposure, prepare contingency plans.",
+  "reasoning_brief": "EONET event with active open status and confirmed location."
 }
 ```
 
+All fields except `is_event_worthy` and `reasoning_brief` are returned in the `AnalysisResponse` directly. The `GET /ai/analysis/{id}` endpoint additionally returns `raw_response_json` (exact Gemini output) and `prompt_version`.
+
 ### DB Tables Written by This Module
 
-**`ai_analyses`** — one row per Gemini call. Stores full validated output + `raw_response_json` + `model_name` + `prompt_version`.
+**`ai_analyses`** — one row per Gemini call. Full output + `raw_response_json` + `model_name` + `prompt_version`.
 
-**`events`** — one row per accepted signal. Populated from `ai_analyses`. Status defaults to `active`.
+**`events`** — one row per accepted signal. Status defaults to `active`.
 
 ### Input / Output
 
 | Endpoint | Input | Output |
 |---|---|---|
-| `POST /signals/ingest` | signal JSON body | `AnalysisResponse` — **primary path** |
+| `POST /signals/ingest` | signal JSON body (only `title` required) | `AnalysisResponse` — **primary path** |
 | `POST /replay/release-and-analyze` | optional `?source_type=` | `AnalysisResponse` — **demo convenience** |
-| `POST /ai/analyze-signal/{id}` | signal id (must be `released`) | `AnalysisResponse` — debug utility |
-| `POST /ai/analyze-next-released` | — | `AnalysisResponse` — debug utility |
-| `GET /ai/analysis/{id}` | — | full `AiAnalysisOut` |
+| `POST /ai/analyze-signal/{id}` | simulator signal id (must be `released`) | `AnalysisResponse` — debug utility |
+| `GET /ai/analysis/{id}` | — | full `AiAnalysisOut` with raw Gemini JSON |
 | `GET /events` | `?limit=`, `?offset=` | list of `EventOut` |
 | `GET /events/{id}` | — | single `EventOut` |
 
@@ -281,48 +291,12 @@ Both files are in `backend/app/prompts/`. No code change needed to edit them —
 
 | Scenario | Behaviour |
 |---|---|
-| `GEMINI_API_KEY` not set | 500 with clear message on first call |
-| Signal not found | 404 |
-| Signal not yet released | 422 |
-| Signal already analyzed | 409 |
+| `GEMINI_API_KEY` not set | 503 with clear message |
 | Gemini API error / timeout | signal → `failed`, `processing_error` set |
 | Malformed JSON from Gemini | Pydantic validation error → signal → `failed` |
-| No released signals in queue | 404 with helpful message |
-
----
-
-## Redesign — Decoupled Ingest Pipeline
-
-The simulator and the analysis pipeline are now fully independent.
-
-### The boundary
-
-```
-SIMULATOR (demo only)               PIPELINE (the real product)
-────────────────────                ──────────────────────────────
-replay_signals table                POST /signals/ingest
-POST /replay/next                     accepts any signal JSON
-  → returns signal JSON               no DB lookup needed
-       │                              runs Gemini, stores results
-       │    for demo convenience
-       └──► POST /replay/release-and-analyze
-              internally: release_next() → ingest_signal()
-              one call, full result
-```
-
-### /signals/ingest
-
-`POST /signals/ingest` is the stable contract. Only `title` is required. In production a live news API connector, a GDELT fetcher, or a webhook receiver would call this. The simulator feeds it for demo purposes.
-
-`replay_signal_id` in `ai_analyses` and `events` is now nullable — signals that arrive via direct ingest have no simulator record and that's fine.
-
-### /replay/release-and-analyze
-
-Convenience endpoint for the demo: calls `release_next()` internally, converts the ORM object to a plain dict, then calls `ingest_signal()`. This is the "one button" demo flow.
-
-### Migration 0005
-
-Makes `replay_signal_id` nullable in both `ai_analyses` and `events` to support direct ingest without a simulator record.
+| Signal not found | 404 |
+| Signal not yet released (debug endpoint) | 422 |
+| Signal already analyzed (debug endpoint) | 409 |
 
 ---
 

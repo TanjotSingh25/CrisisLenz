@@ -144,114 +144,10 @@ Expected: signal with `latitude`, `longitude`, `event_category`, `event_status` 
 
 ## Module 3 — Gemini Live Signal Analysis
 
-**Requires `GEMINI_API_KEY` in your `.env` file.**
+**Requires `GEMINI_API_KEY` in your `.env` file and `docker compose restart backend` after adding it.**
 
-### Setup
+### Primary path — submit any signal JSON directly
 ```bash
-# In your .env file:
-GEMINI_API_KEY=your_key_here
-GEMINI_MODEL=gemini-2.5-flash   # or leave default
-```
-Restart if you just added the key:
-```bash
-docker compose restart backend
-```
-
-### Analyze a specific released signal
-```bash
-# Step 1: release a signal, note the id
-curl -X POST http://localhost:8000/replay/next
-
-# Step 2: analyze it (replace 1 with actual id)
-curl -X POST http://localhost:8000/ai/analyze-signal/1
-```
-Expected if accepted (operationally relevant):
-```json
-{
-  "signal_id": 1,
-  "outcome": "accepted",
-  "analysis_id": 1,
-  "event_id": 1,
-  "is_event_worthy": true,
-  "event_type": "bombing",
-  "severity": "high",
-  "confidence": 0.92,
-  "title": "Bomb attack on Jerusalem bus"
-}
-```
-Expected if rejected (noise/irrelevant):
-```json
-{
-  "signal_id": 1,
-  "outcome": "rejected",
-  "analysis_id": 1,
-  "is_event_worthy": false,
-  "rejection_reason": "Routine political interview with no immediate operational risk."
-}
-```
-
-### Analyze next released signal in queue
-```bash
-# Release a few first
-curl -X POST http://localhost:8000/replay/next
-curl -X POST http://localhost:8000/replay/next
-
-# Analyze the oldest unanalyzed released signal
-curl -X POST http://localhost:8000/ai/analyze-next-released
-```
-
-### Analyze an EONET event (coordinates should be preserved)
-```bash
-curl -X POST "http://localhost:8000/replay/next?source_type=eonet_event"
-# Note the id, then:
-curl -X POST http://localhost:8000/ai/analyze-signal/<id>
-```
-Expected: `latitude` and `longitude` match the original EONET signal values.
-
-### View all created events
-```bash
-curl http://localhost:8000/events
-```
-Returns list of accepted events, newest first.
-
-### View a specific event
-```bash
-curl http://localhost:8000/events/1
-```
-
-### View full AI analysis output (including reasoning)
-```bash
-curl http://localhost:8000/ai/analysis/1
-```
-Returns the full Gemini response including `reasoning_brief`, `business_impact`, `recommended_action`.
-
-### Confirm signal statuses updated
-```bash
-curl http://localhost:8000/replay/status
-```
-`processed` count increments for accepted signals, `rejected` count for noise.
-
-### Error cases
-```bash
-# Signal not yet released → 422
-curl -X POST http://localhost:8000/ai/analyze-signal/999
-
-# Signal already analyzed → 409
-curl -X POST http://localhost:8000/ai/analyze-signal/1  # second time
-```
-
-### Interactive API docs
-All endpoints available at: `http://localhost:8000/docs`
-
----
-
-## Redesign — Decoupled Ingest Pipeline
-
-The `POST /signals/ingest` endpoint is now the primary entry point. It accepts any signal JSON directly — no simulator DB lookup needed. The simulator feeds this endpoint for the demo; in production a live API connector would call it instead.
-
-### POST /signals/ingest — direct signal submission (production-style path)
-```bash
-# Feed any signal JSON directly to the pipeline
 curl -X POST http://localhost:8000/signals/ingest \
   -H "Content-Type: application/json" \
   -d '{
@@ -259,40 +155,70 @@ curl -X POST http://localhost:8000/signals/ingest \
     "source_name": "Wikinews",
     "title": "Bomb on Jerusalem bus kills one, over 30 injured",
     "summary": "A bomb explosion wounded over 30 people at a crowded bus stop in Jerusalem.",
-    "body": "Full article text here...",
+    "body": "Full article body here...",
     "category_hint": "political_security",
     "matched_keywords": ["attack", "bomb", "injured"]
   }'
 ```
-Expected: same `AnalysisResponse` as analyze-signal. No simulator record needed.
+Only `title` is required. Expected if accepted:
+```json
+{
+  "outcome": "accepted",
+  "analysis_id": 1,
+  "event_id": 1,
+  "is_event_worthy": true,
+  "event_type": "bombing",
+  "severity": "high",
+  "confidence": 0.92,
+  "title": "Bomb attack on Jerusalem bus",
+  "summary": "A bomb detonated at a Jerusalem bus stop, killing one and injuring over 30.",
+  "location_name": "Jerusalem, Israel",
+  "latitude": 31.77,
+  "longitude": 35.21,
+  "business_impact": "Travel disruption and security risk for operations in the Jerusalem area.",
+  "recommended_action": "Monitor local security advisories, check staff in the area, review travel policies.",
+  "reasoning_brief": "Active bombing event with confirmed casualties at a named location."
+}
+```
+Expected if rejected (noise article):
+```json
+{
+  "outcome": "rejected",
+  "analysis_id": 2,
+  "is_event_worthy": false,
+  "event_type": "other",
+  "severity": "low",
+  "rejection_reason": "Routine political interview with no immediate operational risk.",
+  "reasoning_brief": "Article is informational commentary, no active disruptive event."
+}
+```
 
-### POST /replay/release-and-analyze — one-button demo flow
+### Demo path — release and analyze in one call
 ```bash
-# Releases next pending signal AND immediately analyzes it — single call
+# Release next Wikinews signal and analyze it immediately
 curl -X POST http://localhost:8000/replay/release-and-analyze
 
-# Release and analyze an EONET event specifically
+# Release and analyze an EONET natural event
 curl -X POST "http://localhost:8000/replay/release-and-analyze?source_type=eonet_event"
 ```
-Expected: full analysis outcome in one response. This is the primary demo endpoint.
+Returns the same full `AnalysisResponse`. EONET events will have `latitude`/`longitude` already populated — Gemini preserves them.
 
-### Full demo sequence (clean run)
+### View all created events
 ```bash
-# 1. Check everything is pending
-curl http://localhost:8000/replay/status
-
-# 2. One call: release + analyze a Wikinews article
-curl -X POST http://localhost:8000/replay/release-and-analyze
-
-# 3. One call: release + analyze an EONET event
-curl -X POST "http://localhost:8000/replay/release-and-analyze?source_type=eonet_event"
-
-# 4. See the events that were created
 curl http://localhost:8000/events
-
-# 5. Reset everything and repeat
-curl -X POST http://localhost:8000/replay/reset
 ```
+
+### View the full Gemini analysis record for any result
+```bash
+curl http://localhost:8000/ai/analysis/1
+```
+Returns everything including `raw_response_json` (the exact JSON Gemini returned).
+
+### Confirm signal statuses
+```bash
+curl http://localhost:8000/replay/status
+```
+`processed` increments for accepted signals, `rejected` for noise.
 
 ---
 

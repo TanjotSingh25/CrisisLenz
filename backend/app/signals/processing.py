@@ -71,6 +71,13 @@ def ingest_signal(
             severity=result.severity,
             confidence=result.confidence,
             title=result.title,
+            summary=result.summary,
+            location_name=result.location_name,
+            latitude=result.latitude,
+            longitude=result.longitude,
+            business_impact=result.business_impact,
+            recommended_action=result.recommended_action,
+            reasoning_brief=result.reasoning_brief,
             event_id=event.id,
         )
     else:
@@ -86,6 +93,7 @@ def ingest_signal(
             event_type=result.event_type,
             severity=result.severity,
             confidence=result.confidence,
+            reasoning_brief=result.reasoning_brief,
             rejection_reason=result.rejection_reason,
         )
 

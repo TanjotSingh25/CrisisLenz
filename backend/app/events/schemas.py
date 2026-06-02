@@ -49,12 +49,19 @@ class EventOut(BaseModel):
 
 class AnalysisResponse(BaseModel):
     signal_id: int | None = None  # None when signal came via direct ingest, not from simulator
-    outcome: str
+    outcome: str                  # "accepted" or "rejected"
     analysis_id: int
     is_event_worthy: bool
     event_type: str | None = None
     severity: str | None = None
     confidence: float | None = None
     title: str | None = None
+    summary: str | None = None
+    location_name: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    business_impact: str | None = None
+    recommended_action: str | None = None
+    reasoning_brief: str | None = None
     event_id: int | None = None
     rejection_reason: str | None = None
