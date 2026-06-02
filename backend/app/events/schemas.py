@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 class AiAnalysisOut(BaseModel):
     id: int
-    replay_signal_id: int
+    replay_signal_id: int | None
     model_name: str | None
     prompt_version: str | None
     is_event_worthy: bool
@@ -28,7 +28,7 @@ class AiAnalysisOut(BaseModel):
 
 class EventOut(BaseModel):
     id: int
-    replay_signal_id: int
+    replay_signal_id: int | None
     ai_analysis_id: int
     event_type: str | None
     title: str | None
@@ -48,7 +48,7 @@ class EventOut(BaseModel):
 
 
 class AnalysisResponse(BaseModel):
-    signal_id: int
+    signal_id: int | None = None  # None when signal came via direct ingest, not from simulator
     outcome: str
     analysis_id: int
     is_event_worthy: bool
