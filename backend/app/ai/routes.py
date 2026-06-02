@@ -31,8 +31,11 @@ def analyze_signal(signal_id: int, db: Session = Depends(get_db)):
             status_code=409,
             detail=f"Signal {signal_id} is already {signal.status}.",
         )
-    signal_dict = processing.replay_signal_to_dict(signal)
-    return processing.ingest_signal(db, signal_dict, replay_signal=signal)
+    try:
+        signal_dict = processing.replay_signal_to_dict(signal)
+        return processing.ingest_signal(db, signal_dict, replay_signal=signal)
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
 
 @router.post("/analyze-next-released", response_model=AnalysisResponse)
@@ -52,5 +55,8 @@ def analyze_next_released(db: Session = Depends(get_db)):
             status_code=404,
             detail="No released signals waiting. Call POST /replay/next or POST /replay/release-and-analyze.",
         )
-    signal_dict = processing.replay_signal_to_dict(signal)
-    return processing.ingest_signal(db, signal_dict, replay_signal=signal)
+    try:
+        signal_dict = processing.replay_signal_to_dict(signal)
+        return processing.ingest_signal(db, signal_dict, replay_signal=signal)
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -20,4 +20,7 @@ def ingest_signal(body: IngestSignalRequest, db: Session = Depends(get_db)):
     In the demo: feed this the JSON returned by POST /replay/next.
     In production: a live API connector would call this directly.
     """
-    return processing.ingest_signal(db, body.model_dump(), replay_signal=None)
+    try:
+        return processing.ingest_signal(db, body.model_dump(), replay_signal=None)
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))

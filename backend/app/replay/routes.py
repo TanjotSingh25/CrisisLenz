@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -56,8 +56,11 @@ def release_and_analyze(
     In production this step wouldn't exist — signals would arrive live.
     """
     signal = service.release_next(db, source_type=source_type)
-    signal_dict = processing.replay_signal_to_dict(signal)
-    return processing.ingest_signal(db, signal_dict, replay_signal=signal)
+    try:
+        signal_dict = processing.replay_signal_to_dict(signal)
+        return processing.ingest_signal(db, signal_dict, replay_signal=signal)
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
 
 @router.post("/reset", response_model=MessageResponse)
