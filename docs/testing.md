@@ -245,6 +245,57 @@ All endpoints available at: `http://localhost:8000/docs`
 
 ---
 
+## Redesign — Decoupled Ingest Pipeline
+
+The `POST /signals/ingest` endpoint is now the primary entry point. It accepts any signal JSON directly — no simulator DB lookup needed. The simulator feeds this endpoint for the demo; in production a live API connector would call it instead.
+
+### POST /signals/ingest — direct signal submission (production-style path)
+```bash
+# Feed any signal JSON directly to the pipeline
+curl -X POST http://localhost:8000/signals/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source_type": "wikinews_dump",
+    "source_name": "Wikinews",
+    "title": "Bomb on Jerusalem bus kills one, over 30 injured",
+    "summary": "A bomb explosion wounded over 30 people at a crowded bus stop in Jerusalem.",
+    "body": "Full article text here...",
+    "category_hint": "political_security",
+    "matched_keywords": ["attack", "bomb", "injured"]
+  }'
+```
+Expected: same `AnalysisResponse` as analyze-signal. No simulator record needed.
+
+### POST /replay/release-and-analyze — one-button demo flow
+```bash
+# Releases next pending signal AND immediately analyzes it — single call
+curl -X POST http://localhost:8000/replay/release-and-analyze
+
+# Release and analyze an EONET event specifically
+curl -X POST "http://localhost:8000/replay/release-and-analyze?source_type=eonet_event"
+```
+Expected: full analysis outcome in one response. This is the primary demo endpoint.
+
+### Full demo sequence (clean run)
+```bash
+# 1. Check everything is pending
+curl http://localhost:8000/replay/status
+
+# 2. One call: release + analyze a Wikinews article
+curl -X POST http://localhost:8000/replay/release-and-analyze
+
+# 3. One call: release + analyze an EONET event
+curl -X POST "http://localhost:8000/replay/release-and-analyze?source_type=eonet_event"
+
+# 4. See the events that were created
+curl http://localhost:8000/events
+
+# 5. Reset everything and repeat
+curl -X POST http://localhost:8000/replay/reset
+```
+
+---
+
 ## Useful: Reset Everything for a Clean Demo Run
 ```bash
 curl -X POST http://localhost:8000/replay/reset

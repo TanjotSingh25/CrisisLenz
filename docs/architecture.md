@@ -269,8 +269,10 @@ Both files are in `backend/app/prompts/`. No code change needed to edit them —
 
 | Endpoint | Input | Output |
 |---|---|---|
-| `POST /ai/analyze-signal/{id}` | signal must be `released` | `AnalysisResponse` |
-| `POST /ai/analyze-next-released` | — | `AnalysisResponse` |
+| `POST /signals/ingest` | signal JSON body | `AnalysisResponse` — **primary path** |
+| `POST /replay/release-and-analyze` | optional `?source_type=` | `AnalysisResponse` — **demo convenience** |
+| `POST /ai/analyze-signal/{id}` | signal id (must be `released`) | `AnalysisResponse` — debug utility |
+| `POST /ai/analyze-next-released` | — | `AnalysisResponse` — debug utility |
 | `GET /ai/analysis/{id}` | — | full `AiAnalysisOut` |
 | `GET /events` | `?limit=`, `?offset=` | list of `EventOut` |
 | `GET /events/{id}` | — | single `EventOut` |
@@ -286,6 +288,41 @@ Both files are in `backend/app/prompts/`. No code change needed to edit them —
 | Gemini API error / timeout | signal → `failed`, `processing_error` set |
 | Malformed JSON from Gemini | Pydantic validation error → signal → `failed` |
 | No released signals in queue | 404 with helpful message |
+
+---
+
+## Redesign — Decoupled Ingest Pipeline
+
+The simulator and the analysis pipeline are now fully independent.
+
+### The boundary
+
+```
+SIMULATOR (demo only)               PIPELINE (the real product)
+────────────────────                ──────────────────────────────
+replay_signals table                POST /signals/ingest
+POST /replay/next                     accepts any signal JSON
+  → returns signal JSON               no DB lookup needed
+       │                              runs Gemini, stores results
+       │    for demo convenience
+       └──► POST /replay/release-and-analyze
+              internally: release_next() → ingest_signal()
+              one call, full result
+```
+
+### /signals/ingest
+
+`POST /signals/ingest` is the stable contract. Only `title` is required. In production a live news API connector, a GDELT fetcher, or a webhook receiver would call this. The simulator feeds it for demo purposes.
+
+`replay_signal_id` in `ai_analyses` and `events` is now nullable — signals that arrive via direct ingest have no simulator record and that's fine.
+
+### /replay/release-and-analyze
+
+Convenience endpoint for the demo: calls `release_next()` internally, converts the ORM object to a plain dict, then calls `ingest_signal()`. This is the "one button" demo flow.
+
+### Migration 0005
+
+Makes `replay_signal_id` nullable in both `ai_analyses` and `events` to support direct ingest without a simulator record.
 
 ---
 

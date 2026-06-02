@@ -12,7 +12,7 @@ class AiAnalysis(Base):
     __tablename__ = "ai_analyses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    replay_signal_id: Mapped[int] = mapped_column(Integer, ForeignKey("replay_signals.id"), nullable=False, index=True)
+    replay_signal_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("replay_signals.id"), nullable=True, index=True)
     model_name: Mapped[str | None] = mapped_column(String(100))
     prompt_version: Mapped[str | None] = mapped_column(String(50))
     is_event_worthy: Mapped[bool] = mapped_column(Boolean, nullable=False)
@@ -36,7 +36,7 @@ class Event(Base):
     __tablename__ = "events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    replay_signal_id: Mapped[int] = mapped_column(Integer, ForeignKey("replay_signals.id"), nullable=False, index=True)
+    replay_signal_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("replay_signals.id"), nullable=True, index=True)
     ai_analysis_id: Mapped[int] = mapped_column(Integer, ForeignKey("ai_analyses.id"), nullable=False)
     event_type: Mapped[str | None] = mapped_column(String(50))
     title: Mapped[str | None] = mapped_column(Text)

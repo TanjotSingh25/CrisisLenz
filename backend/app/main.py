@@ -11,10 +11,11 @@ from app.database import engine
 from app.events.routes import router as events_router
 from app.providers.eonet.routes import router as eonet_router
 from app.replay.routes import router as replay_router
+from app.signals.routes import router as signals_router
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Crisis Lens", version="0.5.0")
+app = FastAPI(title="Crisis Lens", version="0.6.0")
 
 
 def run_migrations() -> None:
@@ -56,6 +57,7 @@ def health():
     return {"status": "ok"}
 
 
+app.include_router(signals_router)
 app.include_router(replay_router)
 app.include_router(eonet_router)
 app.include_router(ai_router)

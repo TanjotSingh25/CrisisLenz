@@ -15,30 +15,32 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 _ALREADY_ANALYZED = {"processed", "rejected", "failed"}
 
 
-def _get_released_signal(db: Session, signal_id: int) -> ReplaySignal:
+@router.post("/analyze-signal/{signal_id}", response_model=AnalysisResponse)
+def analyze_signal(signal_id: int, db: Session = Depends(get_db)):
+    """
+    Debug/utility endpoint: analyze a specific signal from the simulator DB by ID.
+    Use POST /signals/ingest for the production-style path.
+    """
     signal = db.query(ReplaySignal).filter(ReplaySignal.id == signal_id).first()
     if not signal:
         raise HTTPException(status_code=404, detail=f"Signal {signal_id} not found.")
     if signal.status == "pending":
-        raise HTTPException(status_code=422, detail="Signal has not been released yet. Call POST /replay/next first.")
+        raise HTTPException(status_code=422, detail="Signal not released yet. Call POST /replay/next first.")
     if signal.status in _ALREADY_ANALYZED:
         raise HTTPException(
             status_code=409,
-            detail=f"Signal {signal_id} is already {signal.status}. Use POST /replay/reset to start over.",
+            detail=f"Signal {signal_id} is already {signal.status}.",
         )
-    return signal
-
-
-@router.post("/analyze-signal/{signal_id}", response_model=AnalysisResponse)
-def analyze_signal(signal_id: int, db: Session = Depends(get_db)):
-    """Analyze a specific released signal by ID."""
-    signal = _get_released_signal(db, signal_id)
-    return processing.process_signal(db, signal)
+    signal_dict = processing.replay_signal_to_dict(signal)
+    return processing.ingest_signal(db, signal_dict, replay_signal=signal)
 
 
 @router.post("/analyze-next-released", response_model=AnalysisResponse)
 def analyze_next_released(db: Session = Depends(get_db)):
-    """Find the next released signal and analyze it."""
+    """
+    Debug/utility endpoint: finds the oldest released-but-unanalyzed signal and processes it.
+    Use POST /replay/release-and-analyze for the clean one-button demo path.
+    """
     signal = (
         db.query(ReplaySignal)
         .filter(ReplaySignal.status == "released")
@@ -48,6 +50,7 @@ def analyze_next_released(db: Session = Depends(get_db)):
     if not signal:
         raise HTTPException(
             status_code=404,
-            detail="No released signals waiting. Call POST /replay/next to release one.",
+            detail="No released signals waiting. Call POST /replay/next or POST /replay/release-and-analyze.",
         )
-    return processing.process_signal(db, signal)
+    signal_dict = processing.replay_signal_to_dict(signal)
+    return processing.ingest_signal(db, signal_dict, replay_signal=signal)

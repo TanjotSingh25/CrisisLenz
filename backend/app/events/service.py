@@ -3,17 +3,16 @@ from sqlalchemy.orm import Session
 from app.ai.schemas import SignalAnalysisResult
 from app.config import settings
 from app.events.models import AiAnalysis, Event
-from app.replay.models import ReplaySignal
 
 
 def create_ai_analysis(
     db: Session,
-    signal: ReplaySignal,
+    replay_signal_id: int | None,
     result: SignalAnalysisResult,
     prompt_version: str,
 ) -> AiAnalysis:
     analysis = AiAnalysis(
-        replay_signal_id=signal.id,
+        replay_signal_id=replay_signal_id,
         model_name=settings.gemini_model,
         prompt_version=prompt_version,
         is_event_worthy=result.is_event_worthy,
@@ -38,12 +37,12 @@ def create_ai_analysis(
 
 def create_event(
     db: Session,
-    signal: ReplaySignal,
+    replay_signal_id: int | None,
     analysis: AiAnalysis,
     result: SignalAnalysisResult,
 ) -> Event:
     event = Event(
-        replay_signal_id=signal.id,
+        replay_signal_id=replay_signal_id,
         ai_analysis_id=analysis.id,
         event_type=result.event_type,
         title=result.title,
