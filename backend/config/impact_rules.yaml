@@ -1,0 +1,94 @@
+# Crisis Lens — Estimated Operational Impact Radius Rules
+#
+# Values are in kilometres.
+# These are estimated operational-impact zones for demo purposes —
+# NOT scientifically modelled affected areas.
+#
+# Usage: if Gemini classifies an event as event_type=wildfire, severity=high,
+# the system uses a 150km radius to find nearby client assets.
+#
+# Edit freely. Unknown event types fall back to "default".
+
+default:
+  low: 25
+  medium: 50
+  high: 100
+  critical: 200
+  unknown: 50
+
+wildfire:
+  low: 25
+  medium: 75
+  high: 150
+  critical: 300
+  unknown: 75
+
+earthquake:
+  low: 75
+  medium: 150
+  high: 300
+  critical: 500
+  unknown: 150
+
+flood:
+  low: 25
+  medium: 75
+  high: 150
+  critical: 250
+  unknown: 75
+
+severe_storm:
+  low: 50
+  medium: 100
+  high: 200
+  critical: 400
+  unknown: 100
+
+volcano:
+  low: 25
+  medium: 75
+  high: 150
+  critical: 300
+  unknown: 75
+
+bombing:
+  low: 5
+  medium: 15
+  high: 30
+  critical: 60
+  unknown: 15
+
+civil_unrest:
+  low: 5
+  medium: 15
+  high: 30
+  critical: 75
+  unknown: 15
+
+transport_disruption:
+  low: 25
+  medium: 75
+  high: 150
+  critical: 300
+  unknown: 75
+
+power_outage:
+  low: 25
+  medium: 75
+  high: 150
+  critical: 300
+  unknown: 75
+
+industrial_incident:
+  low: 10
+  medium: 30
+  high: 75
+  critical: 150
+  unknown: 30
+
+political_security:
+  low: 5
+  medium: 15
+  high: 30
+  critical: 75
+  unknown: 15

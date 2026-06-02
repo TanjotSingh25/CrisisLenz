@@ -300,4 +300,111 @@ curl -X POST http://localhost:8000/replay/reset
 ```bash
 curl -X POST http://localhost:8000/replay/reset
 ```
-All signals back to pending. Events and analyses remain in the DB (they are not deleted by reset).
+All signals back to pending. Events, analyses, and impact matches remain in the DB.
+
+---
+
+## Module 4 — Client Assets + Impact Matching
+
+Clients and assets are seeded automatically via migration 0006 on first startup.
+
+### Seed (or re-seed) clients and assets
+```bash
+curl -X POST http://localhost:8000/clients/seed
+```
+Expected:
+```json
+{ "clients_seeded": 5, "assets_seeded": 16 }
+```
+
+### List all clients
+```bash
+curl http://localhost:8000/clients
+```
+
+### List assets for a specific client
+```bash
+curl http://localhost:8000/clients/1/assets
+```
+
+### List all assets
+```bash
+curl http://localhost:8000/clients/assets/all
+```
+
+### View the loaded impact radius rules
+```bash
+curl http://localhost:8000/impact/rules
+```
+Returns the full YAML as JSON. Edit `backend/config/impact_rules.yaml` and restart to change rules.
+
+### Match a specific event against client assets
+```bash
+# First create an event (release + analyze a signal)
+curl -X POST http://localhost:8000/replay/release-and-analyze
+# Note the event_id from the response, then:
+curl -X POST http://localhost:8000/impact/match-event/1
+```
+Expected for an Idaho wildfire event (high severity, 150km radius):
+```json
+{
+  "event_id": 1,
+  "event_title": "Dewoff Wildfire, Blaine, Idaho",
+  "event_type": "wildfire",
+  "severity": "high",
+  "impact_radius_km": 150.0,
+  "matches_created": 2,
+  "total_matches": 2,
+  "affected_assets": [
+    {
+      "client": "Northline Logistics",
+      "asset": "Idaho Field Site",
+      "city": "Blaine County",
+      "country": "USA",
+      "distance_km": 38.4,
+      "impact_radius_km": 150.0,
+      "risk_level": "high",
+      "criticality": "high"
+    },
+    {
+      "client": "Summit Manufacturing",
+      "asset": "Boise Production Site",
+      "city": "Boise",
+      "country": "USA",
+      "distance_km": 121.5,
+      "impact_radius_km": 150.0,
+      "risk_level": "high",
+      "criticality": "high"
+    }
+  ]
+}
+```
+Events with no coordinates return `"skipped": true` with a clear reason.
+
+### Match all events that haven't been matched yet
+```bash
+curl -X POST http://localhost:8000/impact/match-unmatched-events
+```
+Returns an array of match results. Good for bulk demo setup after creating several events.
+
+### Retrieve existing matches for an event (no re-matching)
+```bash
+curl http://localhost:8000/impact/event/1
+```
+
+### Full demo sequence with impact matching
+```bash
+# 1. Seed clients (if needed)
+curl -X POST http://localhost:8000/clients/seed
+
+# 2. Release and analyze signals
+curl -X POST http://localhost:8000/replay/release-and-analyze
+curl -X POST "http://localhost:8000/replay/release-and-analyze?source_type=eonet_event"
+
+# 3. Match all unmatched events in one call
+curl -X POST http://localhost:8000/impact/match-unmatched-events
+
+# 4. See events and their matched assets
+curl http://localhost:8000/events
+curl http://localhost:8000/impact/event/1
+```

@@ -326,6 +326,92 @@ Makes `replay_signal_id` nullable in both `ai_analyses` and `events` to support 
 
 ---
 
+## Module 4 — Client Assets + Impact Matching
+
+**Files:** `app/clients/`, `app/impact/`, `backend/config/impact_rules.yaml`
+
+### What It Does
+
+Answers the question: *which client assets could be affected by this event?*
+
+Gemini already extracted `event_type`, `severity`, `latitude`, and `longitude` from the signal. This module uses those fields deterministically — no more AI calls — to calculate which fake client assets fall inside the estimated operational impact zone.
+
+### Data Flow
+
+```
+POST /impact/match-event/{event_id}
+      ↓
+impact/service.py :: match_event(db, event_id)
+  — loads Event from DB (has lat/lon/event_type/severity from Gemini)
+  — if no coordinates → return skipped response, no match
+  ↓
+impact/rules.py :: get_impact_radius_km(event_type, severity)
+  — loads backend/config/impact_rules.yaml
+  — normalises event_type aliases (e.g. "forest_fire" → "wildfire")
+  — returns radius in km  e.g. wildfire + high → 150km
+  ↓
+for each ClientAsset in DB:
+  impact/haversine.py :: haversine_km(event_lat, event_lon, asset_lat, asset_lon)
+  — if distance <= radius AND no existing match for this (event, asset) pair:
+      INSERT into event_asset_impacts
+  ↓
+returns MatchEventResponse with affected_assets sorted by distance
+```
+
+### Key Design Decisions
+
+- **Gemini interprets, backend calculates.** The AI determines what the event is and where. The backend determines which assets are exposed. Radius rules are in a YAML file, not in Gemini's output.
+- **"Estimated Operational Impact Zone"** — not "affected area". Crisis Lens is not doing real disaster modelling.
+- **Duplicate prevention** — the service checks for existing `(event_id, client_asset_id)` pairs before inserting. Calling match-event twice is safe.
+- **Events with no coordinates are handled cleanly** — `skipped: true` with a reason.
+
+### Impact Rules Config (`backend/config/impact_rules.yaml`)
+
+```yaml
+wildfire:
+  high: 150   # km
+  critical: 300
+```
+
+Edit this file freely — no code change needed. Restart the container to pick up changes. The `GET /impact/rules` endpoint shows the currently loaded rules.
+
+Event type aliases (normalisation):
+- `forest_fire` → `wildfire`
+- `bomb`, `explosion` → `bombing`
+- `riot`, `protest` → `civil_unrest`
+- Unknown types → `default` rules
+
+### Demo Seed Data
+
+5 fictional clients, 16 assets across North America, Jerusalem, and London. Assets are deliberately placed near common crisis locations (Idaho wildfire zone, Jerusalem, Pacific Northwest) to produce interesting matches.
+
+### DB Tables
+
+**`clients`** — 5 fictional companies (name, industry, description)
+
+**`client_assets`** — 16 assets (lat/lon, asset_type, criticality, client_id)
+
+**`event_asset_impacts`** — one row per matched (event, asset) pair. Stores distance, radius, risk_level, and match_reason.
+
+### Input / Output
+
+| Endpoint | Input | Output |
+|---|---|---|
+| `POST /clients/seed` | — | `{ clients_seeded, assets_seeded }` |
+| `GET /clients` | — | list of clients |
+| `GET /clients/{id}/assets` | — | assets for one client |
+| `GET /clients/assets/all` | — | all assets |
+| `POST /impact/match-event/{id}` | event must exist | `MatchEventResponse` |
+| `POST /impact/match-unmatched-events` | — | list of `MatchEventResponse` |
+| `GET /impact/event/{id}` | — | existing matches for event |
+| `GET /impact/rules` | — | loaded YAML rules as JSON |
+
+### Migration 0006
+
+Creates `clients`, `client_assets`, `event_asset_impacts` tables and seeds all demo clients/assets. Runs once at first startup.
+
+---
+
 ## Configuration Reference
 
 | Variable | Default | Required |
@@ -347,3 +433,5 @@ Makes `replay_signal_id` nullable in both `ai_analyses` and `events` to support 
 | 0002 | Add `latitude`, `longitude`, `event_category`, `event_status` to `replay_signals` |
 | 0003 | Seed `replay_signals` with Wikinews + EONET data (data migration, runs once) |
 | 0004 | Create `ai_analyses`, `events` tables; add `processing_error` to `replay_signals` |
+| 0005 | Make `replay_signal_id` nullable in `ai_analyses` and `events` |
+| 0006 | Create `clients`, `client_assets`, `event_asset_impacts` tables + seed demo data |

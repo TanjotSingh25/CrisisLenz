@@ -5,8 +5,10 @@ from sqlalchemy import engine_from_config, pool
 
 from app.config import settings
 from app.database import Base
-import app.replay.models  # noqa: F401 — registers models with Base
-import app.events.models  # noqa: F401 — registers AiAnalysis and Event with Base
+import app.replay.models   # noqa: F401
+import app.events.models   # noqa: F401
+import app.clients.models  # noqa: F401
+import app.impact.models   # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)
