@@ -56,7 +56,7 @@ Manages a pool of pre-loaded signals and releases them one at a time in a determ
 ### Data Flow
 
 ```
-data/replay/final_replay_signals.json   (847 Wikinews articles, committed to repo)
+data/replay/final_replay_signals.json   (100 Wikinews articles, committed to repo)
 data/eonet_snapshots/eonet_seed_normalized.json  (50 EONET events, committed)
       ↓  Alembic migration 0003 (runs once on first startup)
 replay_signals table  (all rows, status = "pending")

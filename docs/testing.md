@@ -37,20 +37,21 @@ Expected:
 ```bash
 curl http://localhost:8000/replay/status
 ```
-Expected — all Wikinews signals already pending:
+Expected — all signals already pending (100 Wikinews + 50 EONET = 150):
 ```json
 {
-  "total": 897,
-  "pending": 897,
+  "total": 150,
+  "pending": 150,
   "released": 0,
   "processed": 0,
   "rejected": 0,
   "by_source_type": {
-    "wikinews_dump": { "pending": 847, "released": 0, "processed": 0, "rejected": 0 },
+    "wikinews_dump": { "pending": 100, "released": 0, "processed": 0, "rejected": 0 },
     "eonet_event":   { "pending": 50,  "released": 0, "processed": 0, "rejected": 0 }
   }
 }
 ```
+If you see more than 150 (e.g. 200), you have leftover duplicates from earlier seeding. Run `POST /replay/reseed` (after `docker compose restart backend`) to purge and reload a clean 150.
 
 ### Release signals one at a time
 ```bash
@@ -84,7 +85,7 @@ curl -X POST http://localhost:8000/replay/reset
 ```
 Expected:
 ```json
-{ "message": "Reset 897 signals to pending (all sources)." }
+{ "message": "Reset 150 signals to pending (all sources)." }
 ```
 
 ### Reset only one source type
@@ -93,7 +94,7 @@ curl -X POST "http://localhost:8000/replay/reset?source_type=wikinews_dump"
 ```
 Expected:
 ```json
-{ "message": "Reset 847 signals to pending (source_type='wikinews_dump')." }
+{ "message": "Reset 100 signals to pending (source_type='wikinews_dump')." }
 ```
 
 ### Auto-cycling (no 404 when exhausted)
@@ -360,3 +361,64 @@ curl -X POST http://localhost:8000/impact/match-unmatched-events
 curl http://localhost:8000/events
 curl http://localhost:8000/impact/event/1
 ```
+
+---
+
+## EONET End-to-End Demo (most reliable matches)
+
+EONET events already carry coordinates, so they always have a location for impact matching — no dependence on Gemini inferring lat/lon. The first few EONET events are Idaho wildfires that match the **Idaho Field Site** and **Boise Production Site** assets. This is the most dependable demo path.
+
+```bash
+# 1. Clean slate
+curl -X POST http://localhost:8000/replay/reset
+curl -X POST http://localhost:8000/clients/seed
+
+# 2. Release + analyze the next EONET event (an Idaho wildfire)
+curl -X POST "http://localhost:8000/replay/release-and-analyze?source_type=eonet_event"
+```
+Expected — accepted with coordinates preserved from the source:
+```json
+{
+  "outcome": "accepted",
+  "event_id": 1,
+  "is_event_worthy": true,
+  "event_type": "wildfire",
+  "severity": "high",
+  "latitude": 43.050333,
+  "longitude": -113.935667,
+  "business_impact": "...",
+  "recommended_action": "..."
+}
+```
+
+```bash
+# 3. Match that event against client assets (use the event_id from step 2)
+curl -X POST http://localhost:8000/impact/match-event/1
+```
+Expected — Idaho wildfire matches nearby assets:
+```json
+{
+  "event_id": 1,
+  "event_type": "wildfire",
+  "severity": "high",
+  "impact_radius_km": 150.0,
+  "matches_created": 2,
+  "total_matches": 2,
+  "affected_assets": [
+    { "client": "Northline Logistics", "asset": "Idaho Field Site", "distance_km": 41.2, "risk_level": "high" },
+    { "client": "Summit Manufacturing", "asset": "Boise Production Site", "distance_km": 118.5, "risk_level": "high" }
+  ]
+}
+```
+
+```bash
+# 4. Run several EONET events and bulk-match them
+curl -X POST "http://localhost:8000/replay/release-and-analyze?source_type=eonet_event"
+curl -X POST "http://localhost:8000/replay/release-and-analyze?source_type=eonet_event"
+curl -X POST http://localhost:8000/impact/match-unmatched-events
+
+# 5. Review everything
+curl http://localhost:8000/events
+```
+
+**Note on Wikinews matching:** Wikinews articles have no coordinates in the source. Gemini must infer them from the article text. After the prompt update, Gemini provides approximate city-level coordinates for named locations (e.g. Jerusalem → 31.78, 35.21), so security/bombing articles with a clear city will match. If an event still comes back with `latitude: null`, the article named no identifiable location and impact matching will skip it — that is the expected "skipped (no coordinates)" case.
