@@ -357,13 +357,26 @@ Event type aliases (normalisation):
 
 ### Demo Seed Data
 
-5 fictional clients, 16 assets across North America, Jerusalem, and London. Assets are deliberately placed near common crisis locations (Idaho wildfire zone, Jerusalem, Pacific Northwest) to produce interesting matches.
+5 fictional clients, 24 assets. Assets are deliberately placed at city centres where the early Wikinews demo articles and EONET wildfires occur, so the demo produces reliable matches:
+
+- **Idaho Field Site / Boise** → EONET Idaho wildfires (events 1, 2, 5, 6)
+- **Jerusalem Regional Office** → article 0 (Jerusalem bus bombing)
+- **Minsk Depot** → article 2 (Belarus subway bombing)
+- **Islamabad Field Office** → article 4 (Bhutto, Rawalpindi ~15km)
+- **Moscow Logistics Office** → article 5 (Moscow train bombing)
+- **Karachi Energy Office** → article 6 (Karachi base attack)
+- **Fukuoka Retail Office** → article 7 (southern Japan earthquake, 300km radius)
+- **Kabul Aid Station** → articles 9, 22 (Kabul bombings)
+- **Jakarta Health Office** → article 1 (Indonesia tsunami)
+- **Mumbai Health Hub** → article 18 (Mumbai blasts)
+
+Article 3 (BBC poll commentary) is deliberately left uncovered — it demonstrates Gemini rejecting non-operational content. This gives the demo all cases: accepted+matched, accepted+no nearby asset, and rejected.
 
 ### DB Tables
 
 **`clients`** — 5 fictional companies (name, industry, description)
 
-**`client_assets`** — 16 assets (lat/lon, asset_type, criticality, client_id)
+**`client_assets`** — 24 assets (lat/lon, asset_type, criticality, client_id)
 
 **`event_asset_impacts`** — one row per matched (event, asset) pair. Stores distance, radius, risk_level, and match_reason.
 

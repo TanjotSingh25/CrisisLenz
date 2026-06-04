@@ -240,8 +240,34 @@ curl -X POST http://localhost:8000/clients/seed
 ```
 Expected:
 ```json
-{ "clients_seeded": 5, "assets_seeded": 16 }
+{ "clients_seeded": 5, "assets_seeded": 24 }
 ```
+
+### Curated demo sequence — covers all cases
+
+The first Wikinews articles and EONET wildfires have assets placed to match them. After `POST /clients/seed`, run signals in order from a fresh reset:
+
+```bash
+curl -X POST http://localhost:8000/replay/reset
+curl -X POST http://localhost:8000/clients/seed
+
+# Article 0 — Jerusalem bombing → ACCEPTED + matches Jerusalem Regional Office
+curl -X POST http://localhost:8000/replay/release-and-analyze
+curl -X POST http://localhost:8000/impact/match-event/1
+
+# Releasing more Wikinews articles will hit Minsk, Moscow, Karachi, Kabul, etc.
+# Article 3 (BBC poll) → REJECTED by Gemini (non-operational commentary)
+# An EONET Idaho wildfire → ACCEPTED + matches Idaho Field Site + Boise
+
+# Bulk match everything created so far:
+curl -X POST http://localhost:8000/impact/match-unmatched-events
+```
+
+Cases the demo covers:
+- **Accepted + matched** — Jerusalem bombing, Idaho wildfire
+- **Accepted + no nearby asset** — events in regions with no asset
+- **Rejected** — BBC poll commentary (article 3)
+- **Skipped (no coordinates)** — articles where Gemini couldn't infer a location
 
 ### List all clients
 ```bash

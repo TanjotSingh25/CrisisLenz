@@ -37,6 +37,17 @@ _ASSETS = [
     {"client": "Summit Manufacturing","name": "Boise Production Site",        "asset_type": "manufacturing_site",  "latitude": 43.61,  "longitude": -116.20, "city": "Boise",           "region": "Idaho",          "country": "USA",    "criticality": "high"},
     {"client": "Summit Manufacturing","name": "Phoenix Field Station",         "asset_type": "field_site",          "latitude": 33.45,  "longitude": -112.07, "city": "Phoenix",         "region": "Arizona",        "country": "USA",    "criticality": "medium"},
     {"client": "Summit Manufacturing","name": "Calgary Manufacturing Site",    "asset_type": "manufacturing_site",  "latitude": 51.05,  "longitude": -114.07, "city": "Calgary",         "region": "Alberta",        "country": "Canada", "criticality": "critical"},
+
+    # --- International assets placed to match the early Wikinews demo articles ---
+    # Coordinates set at city centres so security/bombing events (small radius) still match.
+    {"client": "Pacific Health Response","name": "Jakarta Health Office",     "asset_type": "health_supply_hub",   "latitude": -6.2000, "longitude": 106.8456, "city": "Jakarta",     "region": "Jakarta",        "country": "Indonesia",   "criticality": "high"},     # art 1: Indonesia tsunami
+    {"client": "Pacific Health Response","name": "Islamabad Field Office",     "asset_type": "office",              "latitude": 33.6844, "longitude":  73.0479, "city": "Islamabad",   "region": "Islamabad",      "country": "Pakistan",    "criticality": "high"},     # art 4: Bhutto (Rawalpindi)
+    {"client": "Pacific Health Response","name": "Kabul Aid Station",          "asset_type": "field_site",          "latitude": 34.5553, "longitude":  69.2075, "city": "Kabul",       "region": "Kabul",          "country": "Afghanistan", "criticality": "critical"}, # art 9,22: Kabul bombings
+    {"client": "Pacific Health Response","name": "Mumbai Health Hub",          "asset_type": "health_supply_hub",   "latitude": 19.0760, "longitude":  72.8777, "city": "Mumbai",      "region": "Maharashtra",    "country": "India",       "criticality": "high"},     # art 18: Mumbai blasts
+    {"client": "Northline Logistics", "name": "Moscow Logistics Office",       "asset_type": "office",              "latitude": 55.7558, "longitude":  37.6173, "city": "Moscow",      "region": "Moscow",         "country": "Russia",      "criticality": "medium"},   # art 5: Moscow train bombing
+    {"client": "Northline Logistics", "name": "Minsk Depot",                   "asset_type": "distribution_center", "latitude": 53.9006, "longitude":  27.5590, "city": "Minsk",       "region": "Minsk",          "country": "Belarus",     "criticality": "medium"},   # art 2: Belarus subway bombing
+    {"client": "Aster Retail Group",  "name": "Fukuoka Retail Office",        "asset_type": "retail_hub",          "latitude": 33.5904, "longitude": 130.4017, "city": "Fukuoka",     "region": "Kyushu",         "country": "Japan",       "criticality": "medium"},   # art 7: southern Japan earthquake (300km radius)
+    {"client": "HarbourGrid Energy",  "name": "Karachi Energy Office",        "asset_type": "office",              "latitude": 24.8607, "longitude":  67.0011, "city": "Karachi",     "region": "Sindh",          "country": "Pakistan",    "criticality": "high"},     # art 6: Karachi base attack
 ]
 
 
