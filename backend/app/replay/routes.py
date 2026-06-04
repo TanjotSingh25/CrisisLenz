@@ -14,6 +14,19 @@ from app.signals import processing
 router = APIRouter(prefix="/replay", tags=["replay"])
 
 
+@router.post("/reseed", response_model=MessageResponse)
+def reseed_replay(db: Session = Depends(get_db)):
+    """
+    Wipe replay_signals and reload from the committed JSON files.
+    Use this to fix duplicates or restore a clean dataset.
+    Existing ai_analyses and events are kept but unlinked from signals.
+    """
+    counts = service.reseed_all(db)
+    return MessageResponse(
+        message=f"Reseeded: {counts['wikinews']} Wikinews + {counts['eonet']} EONET = {counts['total']} total signals."
+    )
+
+
 @router.get("/status", response_model=StatusResponse)
 def replay_status(db: Session = Depends(get_db)):
     return service.get_status(db)

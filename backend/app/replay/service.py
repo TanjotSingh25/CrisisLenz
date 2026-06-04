@@ -1,9 +1,92 @@
-from sqlalchemy import func
+import json
+from pathlib import Path
+
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.common.errors import not_found
 from app.common.timestamps import parse_datetime, utcnow
 from app.replay.models import ReplaySignal
+
+WIKINEWS_FILE = Path("/app/data/replay/final_replay_signals.json")
+EONET_FILE = Path("/app/data/eonet_snapshots/eonet_seed_normalized.json")
+
+
+def reseed_all(db: Session) -> dict:
+    """
+    Wipe replay_signals and re-insert from the committed JSON files.
+    Nullifies replay_signal_id on any existing ai_analyses/events first
+    so FK constraints don't block the delete.
+    """
+    db.execute(text("UPDATE ai_analyses SET replay_signal_id = NULL"))
+    db.execute(text("UPDATE events SET replay_signal_id = NULL"))
+    db.execute(text("DELETE FROM replay_signals"))
+    db.execute(text("ALTER SEQUENCE replay_signals_id_seq RESTART WITH 1"))
+    db.commit()
+
+    wikinews_count = _insert_wikinews(db)
+    eonet_count = _insert_eonet(db, start_order=wikinews_count)
+    return {"wikinews": wikinews_count, "eonet": eonet_count, "total": wikinews_count + eonet_count}
+
+
+def _insert_wikinews(db: Session) -> int:
+    if not WIKINEWS_FILE.exists():
+        return 0
+    records = json.loads(WIKINEWS_FILE.read_text(encoding="utf-8"))
+    signals = [
+        ReplaySignal(
+            source_type=r.get("source_type"),
+            source_name=r.get("source_name"),
+            title=r.get("title"),
+            published_at=parse_datetime(r.get("published_at")),
+            summary=r.get("summary"),
+            body=r.get("body"),
+            language=r.get("language"),
+            url=r.get("url"),
+            filter_score=r.get("filter_score"),
+            category_hint=r.get("category_hint"),
+            matched_keywords=r.get("matched_keywords"),
+            status="pending",
+            release_order=idx,
+            raw_payload=r,
+        )
+        for idx, r in enumerate(records)
+    ]
+    db.add_all(signals)
+    db.commit()
+    return len(signals)
+
+
+def _insert_eonet(db: Session, start_order: int) -> int:
+    if not EONET_FILE.exists():
+        return 0
+    records = json.loads(EONET_FILE.read_text(encoding="utf-8"))
+    signals = [
+        ReplaySignal(
+            source_type=r.get("source_type", "eonet_event"),
+            source_name=r.get("source_name", "NASA EONET"),
+            title=r.get("title"),
+            published_at=parse_datetime(r.get("published_at")),
+            summary=r.get("summary"),
+            body=r.get("body"),
+            language=r.get("language", "en"),
+            url=r.get("url"),
+            filter_score=r.get("filter_score"),
+            category_hint=r.get("category_hint"),
+            matched_keywords=r.get("matched_keywords"),
+            latitude=r.get("latitude"),
+            longitude=r.get("longitude"),
+            event_category=r.get("event_category"),
+            event_status=r.get("event_status"),
+            status="pending",
+            release_order=start_order + idx,
+            raw_payload=r.get("raw_payload", r),
+        )
+        for idx, r in enumerate(records)
+    ]
+    db.add_all(signals)
+    db.commit()
+    return len(signals)
 
 
 def load_eonet_signals(db: Session, normalized: list[dict], replace_existing: bool = True) -> int:
