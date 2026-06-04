@@ -57,6 +57,11 @@ def _parse_dt(ts):
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    existing = bind.execute(sa.text("SELECT COUNT(*) FROM replay_signals")).scalar()
+    if existing > 0:
+        return  # already seeded — skip to prevent duplicates
+
     records = []
     order = 0
 
