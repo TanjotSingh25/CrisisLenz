@@ -18,9 +18,9 @@ Gemini live analysis
 Accepted → structured Event record
 Rejected → signal marked rejected
       ↓
-(future) Client asset matching
+Client asset matching (impact zone)
       ↓
-(future) Alert generation
+Simulated client alert generation
       ↓
 (future) Dashboard
 ```
@@ -40,6 +40,7 @@ Rejected → signal marked rejected
 | `clients` | Fictional demo client organisations |
 | `client_assets` | Client locations with lat/lon and criticality |
 | `event_asset_impacts` | Impact matches between events and client assets |
+| `client_alerts` | Simulated client-facing alerts generated from impact matches |
 
 **`alembic_version`** tracks which migrations have run.
 
@@ -399,6 +400,88 @@ Creates `clients`, `client_assets`, `event_asset_impacts` tables and seeds all d
 
 ---
 
+## Module 5 — Simulated Alert Generation
+
+**Files:** `app/alerts/`
+
+### What It Does
+
+Turns `event_asset_impacts` rows into client-facing **alert records**. Answers: *what alert would this client receive for this affected asset?*
+
+No real delivery — alerts are stored with `delivery_channel = "simulated_dashboard"` and `delivery_status = "not_sent"`. No Gemini call: alert text is composed deterministically from data the event already carries.
+
+### Boundary: Gemini interprets, backend composes
+
+```
+Gemini (Module 3)                  Backend (Module 5)
+──────────────────                 ──────────────────────────
+event_type, severity               alert_title  (templated)
+summary, location_name             alert_summary (templated)
+recommended_action       ───────►  recommended_action (copied verbatim,
+                                      or a deterministic fallback if absent)
+impact match distance/radius ────► distance_km, impact_radius_km, risk_level
+```
+
+This keeps every alert explainable — the wording is generated from fixed templates, the intelligence comes from the stored event.
+
+### Data Flow
+
+```
+POST /alerts/generate-for-event/{event_id}
+      ↓
+alerts/service.py :: generate_for_event(db, event_id)
+  — load all event_asset_impacts for the event
+  ↓
+for each impact (skip if an alert already exists for event_id + client_asset_id):
+  — load event, client, client_asset
+  — alert_title   = "{Risk}-risk {event_type} near {asset_name}"
+  — alert_summary = "{event} near {location} may affect {client}'s {asset}. ..."
+  — recommended_action = event.recommended_action  (or deterministic fallback)
+  — risk_level    = impact.risk_level or event.severity
+  — status="new", delivery_channel="simulated_dashboard", delivery_status="not_sent"
+  ↓
+INSERT into client_alerts
+```
+
+### Duplicate Prevention
+
+Unique rule: **`event_id + client_asset_id`**. If an alert already exists for that pair, it is skipped and counted in `alerts_skipped`. Re-running generation is always safe.
+
+### Alert Lifecycle
+
+```
+new ──acknowledge──► acknowledged   (sets acknowledged_at)
+    └──dismiss──────► dismissed      (sets dismissed_at)
+```
+
+Dismissed alerts are kept, not deleted. Acknowledging a dismissed alert returns 409.
+
+### Alert Wording
+
+Professional and operational by design — phrases like *"potentially affected"*, *"estimated operational impact zone"*, *"recommended action"*. Avoids alarmist language. This is a demo tool, not an emergency system.
+
+### DB Table
+
+**`client_alerts`** — one row per (event, asset) alert. Stores denormalised content (`alert_title`, `alert_summary`, `recommended_action`, `risk_level`), references (`event_id`, `client_id`, `client_asset_id`, `event_asset_impact_id`), simulated delivery fields, match geometry snapshot (`distance_km`, `impact_radius_km`), and lifecycle timestamps.
+
+### Input / Output
+
+| Endpoint | Input | Output |
+|---|---|---|
+| `POST /alerts/generate-for-event/{event_id}` | event id | created/skipped counts + brief list |
+| `POST /alerts/generate-pending` | — | alerts for all un-alerted impacts |
+| `GET /alerts` | `?status=`, `?client_id=`, `?event_id=`, `?risk_level=` | list of `AlertOut` |
+| `GET /alerts/{id}` | — | single `AlertOut` |
+| `POST /alerts/{id}/acknowledge` | — | updated `AlertOut` (409 if dismissed) |
+| `POST /alerts/{id}/dismiss` | — | updated `AlertOut` |
+| `GET /alerts/summary` | — | counts by status and risk level |
+
+### Migration 0007
+
+Creates the `client_alerts` table with FKs to events, clients, client_assets, and event_asset_impacts.
+
+---
+
 ## Configuration Reference
 
 | Variable | Default | Required |
@@ -422,3 +505,4 @@ Creates `clients`, `client_assets`, `event_asset_impacts` tables and seeds all d
 | 0004 | Create `ai_analyses`, `events` tables; add `processing_error` to `replay_signals` |
 | 0005 | Make `replay_signal_id` nullable in `ai_analyses` and `events` |
 | 0006 | Create `clients`, `client_assets`, `event_asset_impacts` tables + seed demo data |
+| 0007 | Create `client_alerts` table |

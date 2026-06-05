@@ -422,3 +422,102 @@ curl http://localhost:8000/events
 ```
 
 **Note on Wikinews matching:** Wikinews articles have no coordinates in the source. Gemini must infer them from the article text. After the prompt update, Gemini provides approximate city-level coordinates for named locations (e.g. Jerusalem → 31.78, 35.21), so security/bombing articles with a clear city will match. If an event still comes back with `latitude: null`, the article named no identifiable location and impact matching will skip it — that is the expected "skipped (no coordinates)" case.
+
+---
+
+## Module 5 — Simulated Alert Generation
+
+Turns impact matches into client-facing alert records. No real emails/Slack/SMS — alerts are stored in the DB with `delivery_channel = "simulated_dashboard"` and `delivery_status = "not_sent"`. Alert content is built deterministically from the event + client + asset + impact match (no extra Gemini call).
+
+**Prerequisite:** you need an event that has already been impact-matched (Module 4). Alerts are generated from `event_asset_impacts` rows.
+
+### Generate alerts for one event
+```bash
+# event_id must already have impact matches
+curl -X POST http://localhost:8000/alerts/generate-for-event/14
+```
+Expected:
+```json
+{
+  "event_id": 14,
+  "event_title": "Black Ridge Wildfire, Lincoln, Idaho",
+  "impacts_found": 1,
+  "alerts_created": 1,
+  "alerts_skipped": 0,
+  "alerts": [
+    { "id": 1, "client": "Northline Logistics", "asset": "Idaho Field Site", "risk_level": "high", "status": "new" }
+  ]
+}
+```
+
+### Duplicate prevention
+```bash
+# Run the same generate call again — nothing new is created
+curl -X POST http://localhost:8000/alerts/generate-for-event/14
+```
+Expected: `"alerts_created": 0, "alerts_skipped": 1`. The unique rule is `event_id + client_asset_id`.
+
+### Generate alerts for every unmatched impact (bulk)
+```bash
+curl -X POST http://localhost:8000/alerts/generate-pending
+```
+Scans all impact matches and creates alerts for any that don't have one yet.
+
+### List alerts (with optional filters)
+```bash
+curl http://localhost:8000/alerts
+curl "http://localhost:8000/alerts?status=new"
+curl "http://localhost:8000/alerts?client_id=1"
+curl "http://localhost:8000/alerts?event_id=14"
+curl "http://localhost:8000/alerts?risk_level=high"
+```
+
+### Get one full alert
+```bash
+curl http://localhost:8000/alerts/1
+```
+Returns the full record including `alert_title`, `alert_summary`, `recommended_action`, `distance_km`, `impact_radius_km`, and lifecycle timestamps.
+
+### Acknowledge an alert (new → acknowledged)
+```bash
+curl -X POST http://localhost:8000/alerts/1/acknowledge
+```
+Expected: `"status": "acknowledged"` with `acknowledged_at` set. Acknowledging a **dismissed** alert returns 409.
+
+### Dismiss an alert (→ dismissed)
+```bash
+curl -X POST http://localhost:8000/alerts/2/dismiss
+```
+Expected: `"status": "dismissed"` with `dismissed_at` set. The alert is kept, not deleted.
+
+### Summary (for the future dashboard)
+```bash
+curl http://localhost:8000/alerts/summary
+```
+Expected:
+```json
+{
+  "total": 2,
+  "new": 0,
+  "acknowledged": 1,
+  "dismissed": 1,
+  "by_risk_level": { "high": 2 }
+}
+```
+
+### Full Module 5 demo sequence
+```bash
+# 1. Make sure assets are seeded and an event is matched (Modules 4)
+curl -X POST http://localhost:8000/clients/seed
+curl -X POST "http://localhost:8000/replay/release-and-analyze?source_type=eonet_event"   # creates an event
+curl -X POST http://localhost:8000/impact/match-event/<event_id>                          # creates impacts
+
+# 2. Generate alerts from those impacts
+curl -X POST http://localhost:8000/alerts/generate-for-event/<event_id>
+
+# 3. View, acknowledge, dismiss
+curl http://localhost:8000/alerts
+curl -X POST http://localhost:8000/alerts/<alert_id>/acknowledge
+curl -X POST http://localhost:8000/alerts/<alert_id>/dismiss
+curl http://localhost:8000/alerts/summary
+```
