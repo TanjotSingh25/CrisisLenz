@@ -44,9 +44,12 @@ def match_event(db: Session, event_id: int) -> MatchEventResponse:
         .all()
     }
 
+    nearest_km: float | None = None
     new_impacts: list[EventAssetImpact] = []
     for asset in assets:
         distance = haversine_km(event.latitude, event.longitude, asset.latitude, asset.longitude)
+        if nearest_km is None or distance < nearest_km:
+            nearest_km = distance
         if distance > radius_km:
             continue
         if asset.id in existing_asset_ids:
@@ -83,6 +86,8 @@ def match_event(db: Session, event_id: int) -> MatchEventResponse:
         latitude=event.latitude,
         longitude=event.longitude,
         impact_radius_km=radius_km,
+        assets_evaluated=len(assets),
+        nearest_km=round(nearest_km, 2) if nearest_km is not None else None,
         matches_created=len(new_impacts),
         total_matches=len(affected),
         affected_assets=affected,

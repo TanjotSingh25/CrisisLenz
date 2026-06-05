@@ -54,14 +54,21 @@ _ASSETS = [
 
 def seed_clients_and_assets(db: Session) -> tuple[int, int]:
     """Wipe and re-seed all demo clients and assets. Safe to call multiple times."""
-    # event_asset_impacts references both tables — clear it first to satisfy FKs
+    # event_asset_impacts references both tables — clear it first to satisfy FKs.
     db.execute(text("DELETE FROM event_asset_impacts"))
     db.query(ClientAsset).delete()
     db.query(Client).delete()
-    # Reset auto-increment sequences so IDs start from 1 again on each re-seed
-    db.execute(text("ALTER SEQUENCE clients_id_seq RESTART WITH 1"))
-    db.execute(text("ALTER SEQUENCE client_assets_id_seq RESTART WITH 1"))
     db.commit()
+
+    # Reset ID sequences so IDs start from 1 again (cosmetic). Best-effort only —
+    # pg_get_serial_sequence resolves the real sequence name (SERIAL or IDENTITY).
+    # A failure here must never prevent the seed below from running.
+    try:
+        db.execute(text("SELECT setval(pg_get_serial_sequence('clients', 'id'), 1, false)"))
+        db.execute(text("SELECT setval(pg_get_serial_sequence('client_assets', 'id'), 1, false)"))
+        db.commit()
+    except Exception:  # noqa: BLE001 — IDs are cosmetic; do not abort the seed
+        db.rollback()
 
     client_map: dict[str, int] = {}
     for c in _CLIENTS:

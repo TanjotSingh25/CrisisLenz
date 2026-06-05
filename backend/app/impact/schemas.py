@@ -29,6 +29,8 @@ class MatchEventResponse(BaseModel):
     latitude: float | None
     longitude: float | None
     impact_radius_km: float | None
+    assets_evaluated: int = 0  # how many client assets were checked — 0 means none are seeded
+    nearest_km: float | None = None  # distance to closest asset, even if outside radius
     matches_created: int
     total_matches: int
     skipped: bool = False
