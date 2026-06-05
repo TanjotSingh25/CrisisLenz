@@ -1,5 +1,6 @@
 import logging
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.alerts.models import ClientAlert
@@ -13,6 +14,19 @@ from app.impact.models import EventAssetImpact
 logger = logging.getLogger(__name__)
 
 _VALID_STATUSES = {"new", "acknowledged", "dismissed"}
+
+
+def clear_all_alerts(db: Session) -> int:
+    """Delete all alerts and reset the ID sequence to 1. Safe to call multiple times."""
+    db.query(ClientAlert).delete()
+    db.commit()
+    # Reset the auto-increment sequence (best-effort — cosmetic only)
+    try:
+        db.execute(text("SELECT setval(pg_get_serial_sequence('client_alerts', 'id'), 1, false)"))
+        db.commit()
+    except Exception:  # noqa: BLE001 — sequence quirk must never fail the clear
+        db.rollback()
+    return 0
 
 
 # ---------------------------------------------------------------------------

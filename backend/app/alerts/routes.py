@@ -9,6 +9,7 @@ from app.alerts.schemas import (
     GeneratePendingResponse,
 )
 from app.database import get_db
+from app.replay.schemas import MessageResponse
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -59,3 +60,11 @@ def acknowledge_alert(alert_id: int, db: Session = Depends(get_db)):
 def dismiss_alert(alert_id: int, db: Session = Depends(get_db)):
     """Mark an alert as dismissed (-> dismissed). The alert is kept, not deleted."""
     return service.dismiss_alert(db, alert_id)
+
+
+@router.delete("/clear", response_model=MessageResponse)
+def clear_alerts(db: Session = Depends(get_db)):
+    """Delete all alerts and reset the ID sequence. Use to start fresh."""
+    service.clear_all_alerts(db)
+    return MessageResponse(message="Cleared all alerts and reset ID sequence.")
+
