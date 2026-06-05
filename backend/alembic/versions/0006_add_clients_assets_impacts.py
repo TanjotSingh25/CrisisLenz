@@ -49,7 +49,7 @@ _ASSETS = [
     {"client": "Summit Manufacturing","name": "Calgary Manufacturing Site",     "asset_type": "manufacturing_site",  "latitude": 51.05,  "longitude": -114.07, "city": "Calgary",          "region": "Alberta",         "country": "Canada", "criticality": "critical"},
 
     # --- International assets placed to match the early Wikinews demo articles ---
-    {"client": "Pacific Health Response","name": "Jakarta Health Office",     "asset_type": "health_supply_hub",   "latitude": -6.2000, "longitude": 106.8456, "city": "Jakarta",     "region": "Jakarta",        "country": "Indonesia",   "criticality": "high"},
+    {"client": "Pacific Health Response","name": "Padang Health Office",      "asset_type": "health_supply_hub",   "latitude": -0.9471, "longitude": 100.4172, "city": "Padang",      "region": "West Sumatra",   "country": "Indonesia",   "criticality": "high"},
     {"client": "Pacific Health Response","name": "Islamabad Field Office",     "asset_type": "office",              "latitude": 33.6844, "longitude":  73.0479, "city": "Islamabad",   "region": "Islamabad",      "country": "Pakistan",    "criticality": "high"},
     {"client": "Pacific Health Response","name": "Kabul Aid Station",          "asset_type": "field_site",          "latitude": 34.5553, "longitude":  69.2075, "city": "Kabul",       "region": "Kabul",          "country": "Afghanistan", "criticality": "critical"},
     {"client": "Pacific Health Response","name": "Mumbai Health Hub",          "asset_type": "health_supply_hub",   "latitude": 19.0760, "longitude":  72.8777, "city": "Mumbai",      "region": "Maharashtra",    "country": "India",       "criticality": "high"},

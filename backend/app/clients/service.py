@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.clients.models import Client, ClientAsset
@@ -40,7 +41,7 @@ _ASSETS = [
 
     # --- International assets placed to match the early Wikinews demo articles ---
     # Coordinates set at city centres so security/bombing events (small radius) still match.
-    {"client": "Pacific Health Response","name": "Jakarta Health Office",     "asset_type": "health_supply_hub",   "latitude": -6.2000, "longitude": 106.8456, "city": "Jakarta",     "region": "Jakarta",        "country": "Indonesia",   "criticality": "high"},     # art 1: Indonesia tsunami
+    {"client": "Pacific Health Response","name": "Padang Health Office",      "asset_type": "health_supply_hub",   "latitude": -0.9471, "longitude": 100.4172, "city": "Padang",      "region": "West Sumatra",   "country": "Indonesia",   "criticality": "high"},     # art 1: Indonesia tsunami (coastal Sumatra)
     {"client": "Pacific Health Response","name": "Islamabad Field Office",     "asset_type": "office",              "latitude": 33.6844, "longitude":  73.0479, "city": "Islamabad",   "region": "Islamabad",      "country": "Pakistan",    "criticality": "high"},     # art 4: Bhutto (Rawalpindi)
     {"client": "Pacific Health Response","name": "Kabul Aid Station",          "asset_type": "field_site",          "latitude": 34.5553, "longitude":  69.2075, "city": "Kabul",       "region": "Kabul",          "country": "Afghanistan", "criticality": "critical"}, # art 9,22: Kabul bombings
     {"client": "Pacific Health Response","name": "Mumbai Health Hub",          "asset_type": "health_supply_hub",   "latitude": 19.0760, "longitude":  72.8777, "city": "Mumbai",      "region": "Maharashtra",    "country": "India",       "criticality": "high"},     # art 18: Mumbai blasts
@@ -53,8 +54,13 @@ _ASSETS = [
 
 def seed_clients_and_assets(db: Session) -> tuple[int, int]:
     """Wipe and re-seed all demo clients and assets. Safe to call multiple times."""
+    # event_asset_impacts references both tables — clear it first to satisfy FKs
+    db.execute(text("DELETE FROM event_asset_impacts"))
     db.query(ClientAsset).delete()
     db.query(Client).delete()
+    # Reset auto-increment sequences so IDs start from 1 again on each re-seed
+    db.execute(text("ALTER SEQUENCE clients_id_seq RESTART WITH 1"))
+    db.execute(text("ALTER SEQUENCE client_assets_id_seq RESTART WITH 1"))
     db.commit()
 
     client_map: dict[str, int] = {}
