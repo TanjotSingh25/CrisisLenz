@@ -40,6 +40,12 @@ def release_next(
     return service.release_next(db, source_type=source_type)
 
 
+@router.post("/release/{signal_id}", response_model=ReplaySignalOut)
+def release_specific(signal_id: int, db: Session = Depends(get_db)):
+    """Release one specific signal by id — lets the demo pick a known article/event."""
+    return service.release_specific(db, signal_id)
+
+
 @router.get("/signals/released", response_model=list[ReplaySignalOut])
 def list_released(
     source_type: str | None = Query(default=None),

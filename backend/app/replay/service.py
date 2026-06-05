@@ -185,6 +185,26 @@ def release_next(db: Session, source_type: str | None = None) -> ReplaySignal:
     return signal
 
 
+def release_specific(db: Session, signal_id: int) -> ReplaySignal:
+    """Release one specific signal by id (for picking a known signal in the demo)."""
+    signal = db.query(ReplaySignal).filter(ReplaySignal.id == signal_id).first()
+    if signal is None:
+        raise not_found(f"Signal {signal_id} not found.")
+    if signal.status != "pending":
+        # Already released/processed — re-release it so the demo can replay it.
+        signal.status = "released"
+        signal.released_at = utcnow()
+        signal.processed_at = None
+        db.commit()
+        db.refresh(signal)
+        return signal
+    signal.status = "released"
+    signal.released_at = utcnow()
+    db.commit()
+    db.refresh(signal)
+    return signal
+
+
 def get_signals_by_status(
     db: Session, status: str, source_type: str | None = None
 ) -> list[ReplaySignal]:

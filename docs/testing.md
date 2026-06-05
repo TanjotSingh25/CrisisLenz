@@ -521,3 +521,48 @@ curl -X POST http://localhost:8000/alerts/<alert_id>/acknowledge
 curl -X POST http://localhost:8000/alerts/<alert_id>/dismiss
 curl http://localhost:8000/alerts/summary
 ```
+
+---
+
+## Frontend — Operations Dashboard
+
+A React + Vite + TypeScript dark-mode dashboard that drives the whole pipeline step by step. Lives in `frontend/`.
+
+### Run it (option A — local Node, recommended for dev)
+```bash
+cd frontend
+cp .env.example .env          # optional — defaults to http://localhost:8000
+npm install
+npm run dev
+```
+Open http://localhost:5173. The backend must be running (`docker compose up` for db + backend).
+
+### Run it (option B — Docker, full stack)
+```bash
+docker compose up --build      # brings up db + backend + frontend
+```
+Open http://localhost:5173.
+
+### Manual demo flow (this is the intended demo)
+1. Open the dashboard — the header chips show live replay status.
+2. In the left **Signal Intake** panel, pick a source filter (All / Wikinews / EONET).
+3. Click **Release Next** (or select a row and click **Release Selected**). The raw signal appears in the center.
+4. Click **Run Gemini Analysis**. After a few seconds you get either a structured event (green) or a rejection (amber).
+5. If an event was created, click **Run Impact Matching** in the right panel. The map centers on the event, draws the estimated operational impact zone, and highlights affected assets in red.
+6. Click **Generate Simulated Alerts**. Alert cards appear.
+7. Click **Acknowledge** or **Dismiss** on an alert — the status badge updates.
+
+The workflow stepper at the top shows where the current signal is in the pipeline.
+
+### Reliable demo picks
+- **EONET → Release Next**: the first EONET events are Idaho wildfires → match Idaho Field Site + Boise.
+- **Wikinews → select the Jerusalem bombing → Release Selected**: matches the Jerusalem office.
+- A BBC-poll style Wikinews article shows the **rejection** path.
+
+### Auto demo
+Click **Auto-run Demo** to watch the four steps run automatically with short pauses. **Stop Auto Demo** halts it. The default/intended demo is the manual step-by-step flow. **Clear View** resets the on-screen demo without touching backend state.
+
+### Troubleshooting
+- **"Cannot reach the backend"** toast → backend isn't running, or `VITE_API_BASE_URL` is wrong.
+- **Gemini analysis fails** → `GEMINI_API_KEY` missing in the backend `.env` (see Module 3).
+- **Empty map / no matches** → the event had no coordinates, or no assets are within range. Run `POST /clients/seed` once to ensure 24 assets exist.

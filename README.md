@@ -6,31 +6,53 @@ Crisis Lens ingests public-event/news signals, analyzes them with Gemini, matche
 
 ---
 
-## Module 1: Replay Feed Simulator
+## Pipeline (modules built)
 
-The current module. Provides a controlled, deterministic signal feed that the rest of the pipeline will consume.
+```
+Replay signal → Gemini analysis → Structured event → Client impact matching → Simulated alert → Dashboard
+```
+
+1. **Replay Feed Simulator** — deterministic Wikinews + EONET signal feed
+2. **EONET Snapshot Provider** — NASA natural-event data
+3. **Gemini Live Signal Analysis** — extracts structured events, rejects noise
+4. **Client Assets + Impact Matching** — config-driven impact-radius zones
+5. **Simulated Alert Generation** — client-facing alerts from impact matches
+6. **Operations Dashboard** — React/Vite step-by-step demo UI
+
+Full details: [docs/architecture.md](docs/architecture.md) · Testing: [docs/testing.md](docs/testing.md)
 
 ---
 
 ## Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- A Gemini API key (for Module 3 analysis) — [Google AI Studio](https://aistudio.google.com/app/apikey)
+- Node.js 18+ (only if running the dashboard outside Docker)
 
 ---
 
 ## Running Locally
 
 ```bash
-# 1. Copy environment file
+# 1. Copy environment file and add your GEMINI_API_KEY
 cp .env.example .env
 
-# 2. Build and start
+# 2. Build and start the full stack (db + backend + dashboard)
 docker compose up --build
 ```
 
-The API will be available at `http://localhost:8000`.
+- Dashboard: `http://localhost:5173`
+- API: `http://localhost:8000`
+- Interactive API docs: `http://localhost:8000/docs`
 
-Interactive docs: `http://localhost:8000/docs`
+### Dashboard outside Docker (dev mode)
+
+```bash
+cd frontend
+cp .env.example .env     # defaults to http://localhost:8000
+npm install
+npm run dev              # http://localhost:5173
+```
 
 ---
 

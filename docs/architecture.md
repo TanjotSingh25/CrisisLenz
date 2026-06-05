@@ -482,6 +482,54 @@ Creates the `client_alerts` table with FKs to events, clients, client_assets, an
 
 ---
 
+## Frontend — Operations Dashboard
+
+**Files:** `frontend/` (React 18 + Vite + TypeScript + Tailwind + React Leaflet)
+
+### What It Is
+
+A single-page, dark-mode operations dashboard that demonstrates the full **signal → analysis → event → impact → alert** pipeline as a manual, step-by-step flow. It is a thin client over the existing REST API — it holds **no business logic** and never talks to Gemini directly (all AI stays backend-side).
+
+### Layout
+
+```
+Header (live replay status chips + alert count)
+Workflow stepper (Signal Intake → Analysis → Event → Impact → Alerts) + demo controls
+┌───────────────┬─────────────────────────┬──────────────────────────┐
+│ Signal Intake │ Raw Signal              │ Impact Matching + Map     │
+│ (queue, filter│ Gemini Analysis / Event │ Simulated Client Alerts   │
+│  controls)    │                         │                          │
+└───────────────┴─────────────────────────┴──────────────────────────┘
+```
+
+### State Machine
+
+The page tracks one in-flight demo object: `releasedSignal → analysis → match → alerts`. Each backend call advances the workflow stepper. "Clear View" resets the on-screen state only — backend data is untouched unless the user clicks "Reset Replay".
+
+### API Integration
+
+`src/api/` wraps every endpoint used. Base URL comes from `VITE_API_BASE_URL` (default `http://localhost:8000`). Endpoints consumed:
+
+| Step | Endpoint |
+|---|---|
+| Status / queue | `GET /replay/status`, `GET /replay/signals/pending` |
+| Release | `POST /replay/next`, `POST /replay/release/{id}` |
+| Analyze | `POST /ai/analyze-signal/{id}` |
+| Impact | `POST /impact/match-event/{event_id}` |
+| Assets (map) | `GET /clients/assets/all` |
+| Alerts | `POST /alerts/generate-for-event/{id}`, `GET /alerts?event_id=`, ack/dismiss |
+
+### Map
+
+React Leaflet with a dark CartoDB basemap. Uses `CircleMarker`/`Circle` (pure SVG, no image-asset dependency) to plot the event, the **Estimated Operational Impact Zone** radius, all client assets, and highlighted affected assets.
+
+### Backend changes for the dashboard
+
+- **CORS** middleware added in `main.py` allowing `http://localhost:5173`.
+- **`POST /replay/release/{signal_id}`** added — releases one specific signal so the demo can pick a known article/event (re-releases if already processed).
+
+---
+
 ## Configuration Reference
 
 | Variable | Default | Required |
@@ -492,6 +540,7 @@ Creates the `client_alerts` table with FKs to events, clients, client_assets, an
 | `POSTGRES_DB` | — | Yes |
 | `GEMINI_API_KEY` | `""` | Yes for Module 3 |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | No |
+| `VITE_API_BASE_URL` | `http://localhost:8000` | No (frontend) |
 
 ---
 

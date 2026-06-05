@@ -1,0 +1,39 @@
+@import "leaflet/dist/leaflet.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-ink-900 text-slate-200 antialiased;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Leaflet popups in dark mode */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  @apply bg-ink-700 text-slate-100;
+}
+.leaflet-popup-content-wrapper {
+  @apply rounded-lg border border-ink-500;
+}
+.leaflet-container {
+  @apply bg-ink-800;
+}
+
+/* Thin scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded bg-ink-500;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}

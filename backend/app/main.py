@@ -3,6 +3,7 @@ import logging
 from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import inspect, text
 
@@ -18,7 +19,19 @@ from app.signals.routes import router as signals_router
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Crisis Lens", version="0.8.0")
+app = FastAPI(title="Crisis Lens", version="0.9.0")
+
+# Allow the local dev dashboard (Vite) to call the API from the browser.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def run_migrations() -> None:
