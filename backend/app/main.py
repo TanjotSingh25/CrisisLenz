@@ -17,6 +17,21 @@ from app.providers.eonet.routes import router as eonet_router
 from app.replay.routes import router as replay_router
 from app.signals.routes import router as signals_router
 
+def configure_logging() -> None:
+    """
+    Send our app logs to the console at INFO. Called at import AND again after
+    migrations, because Alembic's fileConfig resets the root logger to WARN
+    (from alembic.ini) and would otherwise silence our INFO logs.
+    """
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        force=True,
+    )
+    logging.getLogger("app").setLevel(logging.INFO)
+
+
+configure_logging()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Crisis Lens", version="0.9.0")
@@ -56,16 +71,20 @@ def run_migrations() -> None:
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    # Full traceback to the console (Docker logs) so errors persist and are
+    # easy to capture. The response carries the real message too, so it shows
+    # up in the dashboard toast instead of a generic "ValidationError".
     logger.exception("Unhandled error on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Internal server error: {type(exc).__name__}"},
+        content={"detail": f"{type(exc).__name__}: {str(exc)[:800]}"},
     )
 
 
 @app.on_event("startup")
 def startup() -> None:
     run_migrations()
+    configure_logging()  # re-assert after Alembic's fileConfig reset the root logger
 
 
 @app.get("/health", tags=["health"])

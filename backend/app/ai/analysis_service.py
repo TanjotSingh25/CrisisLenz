@@ -29,10 +29,10 @@ def analyze_signal(signal_data: dict) -> SignalAnalysisResult:
     result = client.analyze_signal(system_prompt, user_prompt)
 
     logger.info(
-        "Analysis done: is_event_worthy=%s event_type=%s severity=%s confidence=%.2f",
+        "Analysis done: is_event_worthy=%s event_type=%s severity=%s confidence=%s",
         result.is_event_worthy,
         result.event_type,
         result.severity,
-        result.confidence,
+        f"{result.confidence:.2f}" if result.confidence is not None else "n/a",
     )
     return result

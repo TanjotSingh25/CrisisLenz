@@ -2,6 +2,7 @@ import logging
 
 from google import genai
 from google.genai import types
+from pydantic import ValidationError
 
 from app.ai.schemas import SignalAnalysisResult
 from app.config import settings
@@ -29,7 +30,16 @@ class GeminiClient:
             ),
         )
 
-        raw_text = response.text
-        logger.debug("Gemini response: %d chars", len(raw_text))
+        raw_text = response.text or ""
+        logger.info("Gemini raw response (%d chars): %s", len(raw_text), raw_text)
 
-        return SignalAnalysisResult.model_validate_json(raw_text)
+        try:
+            return SignalAnalysisResult.model_validate_json(raw_text)
+        except ValidationError as exc:
+            # Surface exactly what Gemini returned so the failure is debuggable.
+            logger.error(
+                "Gemini response failed schema validation.\n--- RAW GEMINI RESPONSE ---\n%s\n--- VALIDATION ERROR ---\n%s",
+                raw_text,
+                exc,
+            )
+            raise
