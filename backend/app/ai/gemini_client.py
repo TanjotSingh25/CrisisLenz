@@ -1,13 +1,17 @@
 import logging
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 from pydantic import ValidationError
 
 from app.ai.schemas import SignalAnalysisResult
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+class GeminiRateLimitError(RuntimeError):
+    """Raised when every model in the fallback chain is rate-limited (429)."""
 
 
 class GeminiClient:
@@ -19,27 +23,56 @@ class GeminiClient:
         self._client = genai.Client(api_key=settings.gemini_api_key)
 
     def analyze_signal(self, system_prompt: str, user_prompt: str) -> SignalAnalysisResult:
-        logger.info("Calling Gemini model: %s", settings.gemini_model)
-
-        response = self._client.models.generate_content(
-            model=settings.gemini_model,
-            contents=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                response_mime_type="application/json",
-            ),
+        """
+        Try each model in settings.model_chain in order. The primary model is
+        tried first on every call; if it is rate-limited (429), fall through to
+        the next model (which has its own quota bucket). Non-rate-limit errors
+        are raised immediately — fallback only helps with quota exhaustion.
+        """
+        chain = settings.model_chain
+        config = types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            response_mime_type="application/json",
         )
 
-        raw_text = response.text or ""
-        logger.info("Gemini raw response (%d chars): %s", len(raw_text), raw_text)
+        last_rate_limit: Exception | None = None
+        for index, model in enumerate(chain):
+            logger.info("Calling Gemini model: %s (option %d/%d)", model, index + 1, len(chain))
+            try:
+                response = self._client.models.generate_content(
+                    model=model, contents=user_prompt, config=config
+                )
+            except errors.ClientError as exc:
+                if getattr(exc, "code", None) == 429:
+                    last_rate_limit = exc
+                    logger.warning(
+                        "Model %s rate-limited (429). %s",
+                        model,
+                        "Trying next model." if index + 1 < len(chain) else "No models left.",
+                    )
+                    continue
+                # Not a quota problem (bad request, auth, etc.) — fallback won't help.
+                raise
 
-        try:
-            return SignalAnalysisResult.model_validate_json(raw_text)
-        except ValidationError as exc:
-            # Surface exactly what Gemini returned so the failure is debuggable.
-            logger.error(
-                "Gemini response failed schema validation.\n--- RAW GEMINI RESPONSE ---\n%s\n--- VALIDATION ERROR ---\n%s",
-                raw_text,
-                exc,
-            )
-            raise
+            raw_text = response.text or ""
+            logger.info("Gemini raw response from %s (%d chars): %s", model, len(raw_text), raw_text)
+            try:
+                return SignalAnalysisResult.model_validate_json(raw_text)
+            except ValidationError as exc:
+                # Bad shape is not a quota problem — surface it, don't burn other models.
+                logger.error(
+                    "Gemini (%s) response failed schema validation.\n"
+                    "--- RAW GEMINI RESPONSE ---\n%s\n--- VALIDATION ERROR ---\n%s",
+                    model,
+                    raw_text,
+                    exc,
+                )
+                raise
+
+        # Every model in the chain was rate-limited.
+        logger.error("All %d Gemini models are rate-limited.", len(chain))
+        raise GeminiRateLimitError(
+            f"All configured Gemini models are rate-limited (tried: {', '.join(chain)}). "
+            f"Free-tier quota exhausted — wait for the per-minute window to reset, or add more "
+            f"fallback models via GEMINI_FALLBACK_MODELS."
+        ) from last_rate_limit

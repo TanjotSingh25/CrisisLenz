@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.ai import analysis_service
 from app.ai.analysis_service import PROMPT_VERSION
+from app.ai.gemini_client import GeminiRateLimitError
 from app.common.timestamps import utcnow
 from app.events import service as event_service
 from app.events.schemas import AnalysisResponse
@@ -44,6 +45,11 @@ def ingest_signal(
 
     try:
         result = analysis_service.analyze_signal(signal_data)
+    except GeminiRateLimitError:
+        # Transient quota exhaustion — do NOT mark the signal failed. Leave it
+        # "released" so it can be retried once the per-minute window resets.
+        logger.warning("Signal id=%s left released for retry — all models rate-limited.", signal_id)
+        raise
     except Exception as exc:
         logger.exception("Gemini analysis failed for signal id=%s", signal_id)
         if replay_signal is not None:

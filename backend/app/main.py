@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import inspect, text
 
+from app.ai.gemini_client import GeminiRateLimitError
 from app.ai.routes import router as ai_router
 from app.alerts.routes import router as alerts_router
 from app.clients.routes import router as clients_router
@@ -71,25 +72,43 @@ def run_migrations() -> None:
     command.upgrade(cfg, "head")
 
 
+def _cors_headers(request: Request) -> dict[str, str]:
+    """
+    Starlette's error middleware sits OUTSIDE CORSMiddleware, so error responses
+    normally lack CORS headers — the browser then reports a misleading "CORS
+    policy" error instead of the real message. Re-add them for allowed origins.
+    """
+    origin = request.headers.get("origin")
+    if origin in ALLOWED_ORIGINS:
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Vary": "Origin",
+        }
+    return {}
+
+
+@app.exception_handler(GeminiRateLimitError)
+async def rate_limit_handler(request: Request, exc: GeminiRateLimitError) -> JSONResponse:
+    """All fallback models exhausted → 503 with a clear, actionable message."""
+    logger.warning("Gemini rate limit (all models) on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=503,
+        content={"detail": str(exc)},
+        headers=_cors_headers(request),
+    )
+
+
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     # Full traceback to the console (Docker logs) so errors persist and are
     # easy to capture. The response carries the real message too, so it shows
     # up in the dashboard toast instead of a generic "ValidationError".
     logger.exception("Unhandled error on %s %s", request.method, request.url.path)
-    # Starlette's error middleware sits OUTSIDE CORSMiddleware, so 500 responses
-    # normally lack CORS headers — the browser then reports a misleading "CORS
-    # policy" error instead of the real message. Add the headers back manually.
-    origin = request.headers.get("origin")
-    headers = {}
-    if origin in ALLOWED_ORIGINS:
-        headers["Access-Control-Allow-Origin"] = origin
-        headers["Access-Control-Allow-Credentials"] = "true"
-        headers["Vary"] = "Origin"
     return JSONResponse(
         status_code=500,
         content={"detail": f"{type(exc).__name__}: {str(exc)[:800]}"},
-        headers=headers,
+        headers=_cors_headers(request),
     )
 
 
