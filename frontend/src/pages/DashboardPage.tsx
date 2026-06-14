@@ -37,6 +37,7 @@ function Dashboard() {
   const [match, setMatch] = useState<MatchEventResponse | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
 
+  const [signalCollapsed, setSignalCollapsed] = useState(false);
   const [releasing, setReleasing] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [matching, setMatching] = useState(false);
@@ -79,6 +80,7 @@ function Dashboard() {
     setAnalysis(null);
     setMatch(null);
     setAlerts([]);
+    setSignalCollapsed(false);
     toast("info", "Demo view cleared. Backend state untouched.");
   };
 
@@ -90,6 +92,7 @@ function Dashboard() {
       setAnalysis(null);
       setMatch(null);
       setAlerts([]);
+      setSignalCollapsed(false); // expand the raw signal for the new item
       try {
         const sig = specific
           ? await replayApi.releaseSpecific(specific.id)
@@ -115,6 +118,7 @@ function Dashboard() {
       try {
         const result = await aiApi.analyzeSignal(sig.id);
         setAnalysis(result);
+        setSignalCollapsed(true); // collapse raw signal once analysis is in
         if (result.outcome === "accepted") toast("success", "Event created from signal.");
         else toast("info", "Signal rejected as low operational relevance.");
         await refreshStatus();
@@ -292,7 +296,11 @@ function Dashboard() {
 
           {/* Center column */}
           <div className="flex flex-col gap-4 lg:col-span-5">
-            <CurrentSignalCard signal={releasedSignal} />
+            <CurrentSignalCard
+              signal={releasedSignal}
+              collapsed={signalCollapsed}
+              onToggleCollapse={() => setSignalCollapsed((v) => !v)}
+            />
             <AiAnalysisPanel
               analysis={analysis}
               canAnalyze={!!releasedSignal && !analysis}

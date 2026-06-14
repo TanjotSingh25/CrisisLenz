@@ -23,6 +23,7 @@ export interface ReplaySignal {
   title: string | null;
   published_at: string | null;
   summary: string | null;
+  body: string | null;
   language: string | null;
   url: string | null;
   filter_score: number | null;

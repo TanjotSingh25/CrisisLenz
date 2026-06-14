@@ -72,12 +72,13 @@ export function ImpactMap({
           );
         })}
 
-        {/* Event marker on top */}
+        {/* Event marker on top — semi-transparent fill + bright ring so a matched
+            asset directly underneath stays visible through it. */}
         {hasEvent && (
           <CircleMarker
             center={center}
-            radius={9}
-            pathOptions={{ color: "#fde68a", fillColor: "#f59e0b", fillOpacity: 1, weight: 2 }}
+            radius={12}
+            pathOptions={{ color: "#fcd34d", fillColor: "#f59e0b", fillOpacity: 0.35, weight: 3 }}
           >
             <Popup>
               <div className="space-y-0.5 text-xs">

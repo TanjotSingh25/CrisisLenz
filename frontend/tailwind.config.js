@@ -6,11 +6,11 @@ export default {
     extend: {
       colors: {
         ink: {
-          900: "#0a0e14",
-          800: "#0f1620",
-          700: "#161f2c",
-          600: "#1e2937",
-          500: "#2a3647",
+          900: "#10161f", // page background (lifted from near-black)
+          800: "#19222e", // cards
+          700: "#222e3d", // raised surfaces
+          600: "#3a4a5e", // borders (brighter for visibility)
+          500: "#4a5d73", // hover / stronger borders
         },
       },
     },

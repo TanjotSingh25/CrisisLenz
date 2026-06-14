@@ -10,6 +10,7 @@ class ReplaySignalOut(BaseModel):
     title: str | None
     published_at: datetime | None
     summary: str | None
+    body: str | None
     language: str | None
     url: str | None
     filter_score: float | None

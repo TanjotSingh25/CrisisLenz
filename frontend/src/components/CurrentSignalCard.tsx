@@ -4,8 +4,19 @@ import type { ReplaySignal } from "../types";
 import { Card, EmptyState, Field } from "./ui";
 import { SourceBadge, Tag } from "./Badges";
 
-export function CurrentSignalCard({ signal }: { signal: ReplaySignal | null }) {
+const PREVIEW_CHARS = 420;
+
+export function CurrentSignalCard({
+  signal,
+  collapsed,
+  onToggleCollapse,
+}: {
+  signal: ReplaySignal | null;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+}) {
   const [showRaw, setShowRaw] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   if (!signal)
     return (
@@ -15,18 +26,40 @@ export function CurrentSignalCard({ signal }: { signal: ReplaySignal | null }) {
     );
 
   const isEonet = signal.source_type === "eonet_event";
+  const fullText = signal.body || signal.summary || "";
+  const isLong = fullText.length > PREVIEW_CHARS;
+  const shownText = expanded || !isLong ? fullText : fullText.slice(0, PREVIEW_CHARS).trimEnd() + "…";
 
   return (
-    <Card title="Raw Incoming Signal" icon={<FileText className="h-4 w-4 text-cyan-400" />}>
+    <Card
+      title="Raw Incoming Signal"
+      icon={<FileText className="h-4 w-4 text-cyan-400" />}
+      collapsible
+      collapsed={collapsed}
+      onToggleCollapse={onToggleCollapse}
+      actions={collapsed ? <SourceBadge sourceType={signal.source_type} /> : undefined}
+    >
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <SourceBadge sourceType={signal.source_type} />
-          <span className="text-xs text-slate-500">{signal.source_name}</span>
+          <span className="text-xs text-slate-400">{signal.source_name}</span>
         </div>
 
         <h3 className="text-base font-semibold leading-snug text-white">{signal.title}</h3>
 
-        {signal.summary && <p className="text-sm leading-relaxed text-slate-300">{signal.summary}</p>}
+        {fullText && (
+          <div>
+            <p className="whitespace-pre-line text-sm leading-relaxed text-slate-200">{shownText}</p>
+            {isLong && (
+              <button
+                onClick={() => setExpanded((v) => !v)}
+                className="mt-1 text-xs font-medium text-cyan-400 hover:text-cyan-300"
+              >
+                {expanded ? "Show less" : "Show more"}
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {signal.category_hint && <Field label="Category" value={signal.category_hint} />}
@@ -60,7 +93,7 @@ export function CurrentSignalCard({ signal }: { signal: ReplaySignal | null }) {
         <div>
           <button
             onClick={() => setShowRaw((v) => !v)}
-            className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300"
+            className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-200"
           >
             <ChevronDown className={`h-3 w-3 transition-transform ${showRaw ? "rotate-180" : ""}`} /> Developer details
           </button>

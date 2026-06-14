@@ -10,8 +10,13 @@ body,
 }
 
 body {
-  @apply bg-ink-900 text-slate-200 antialiased;
+  @apply bg-ink-900 text-slate-100 antialiased;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Lift the dark basemap so it reads more clearly without losing the dark theme */
+.leaflet-tile {
+  filter: brightness(1.55) contrast(0.92) saturate(1.05);
 }
 
 /* Leaflet popups in dark mode */
@@ -20,10 +25,10 @@ body {
   @apply bg-ink-700 text-slate-100;
 }
 .leaflet-popup-content-wrapper {
-  @apply rounded-lg border border-ink-500;
+  @apply rounded-lg border-2 border-ink-500;
 }
 .leaflet-container {
-  @apply bg-ink-800;
+  @apply bg-ink-700;
 }
 
 /* Thin scrollbars */

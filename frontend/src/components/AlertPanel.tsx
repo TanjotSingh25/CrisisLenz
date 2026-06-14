@@ -40,7 +40,8 @@ export function AlertPanel({
 
       <div className="space-y-2.5">
         {alerts.map((alert) => {
-          const terminal = alert.status === "dismissed";
+          // An alert can be actioned once: acknowledged OR dismissed, not both.
+          const actioned = alert.status !== "new";
           return (
             <div key={alert.id} className="rounded-lg border border-ink-600 bg-ink-800 p-3">
               <div className="mb-1.5 flex items-start justify-between gap-2">
@@ -73,7 +74,7 @@ export function AlertPanel({
                   <Button
                     variant="ghost"
                     className="px-2 py-1 text-xs"
-                    disabled={alert.status === "acknowledged" || terminal}
+                    disabled={actioned}
                     loading={busyAlertId === alert.id}
                     onClick={() => onAcknowledge(alert.id)}
                     icon={<Check className="h-3 w-3" />}
@@ -83,7 +84,7 @@ export function AlertPanel({
                   <Button
                     variant="ghost"
                     className="px-2 py-1 text-xs"
-                    disabled={terminal}
+                    disabled={actioned}
                     loading={busyAlertId === alert.id}
                     onClick={() => onDismiss(alert.id)}
                     icon={<X className="h-3 w-3" />}
