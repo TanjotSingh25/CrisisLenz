@@ -36,13 +36,15 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Crisis Lens", version="0.9.0")
 
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
 # Allow the local dev dashboard (Vite) to call the API from the browser.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -75,9 +77,19 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
     # easy to capture. The response carries the real message too, so it shows
     # up in the dashboard toast instead of a generic "ValidationError".
     logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    # Starlette's error middleware sits OUTSIDE CORSMiddleware, so 500 responses
+    # normally lack CORS headers — the browser then reports a misleading "CORS
+    # policy" error instead of the real message. Add the headers back manually.
+    origin = request.headers.get("origin")
+    headers = {}
+    if origin in ALLOWED_ORIGINS:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+        headers["Vary"] = "Origin"
     return JSONResponse(
         status_code=500,
         content={"detail": f"{type(exc).__name__}: {str(exc)[:800]}"},
+        headers=headers,
     )
 
 

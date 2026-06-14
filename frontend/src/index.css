@@ -14,9 +14,10 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Lift the dark basemap so it reads more clearly without losing the dark theme */
-.leaflet-tile {
-  filter: brightness(1.55) contrast(0.92) saturate(1.05);
+/* Lift only the base map tiles (not the label layer) so it reads more clearly
+   without washing out the English place labels on top. */
+.basemap-dim {
+  filter: brightness(1.35) contrast(0.95);
 }
 
 /* Leaflet popups in dark mode */

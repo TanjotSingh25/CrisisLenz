@@ -26,9 +26,16 @@ export function ImpactMap({
   return (
     <div className="h-[360px] overflow-hidden rounded-lg border border-ink-600">
       <MapContainer center={center} zoom={hasEvent ? 5 : 2} className="h-full w-full" worldCopyJump>
+        {/* Esri dark-gray canvas — English/Latin labels. Base is dimmed via CSS;
+            the reference (labels) layer is kept crisp on top. */}
         <TileLayer
-          attribution='&copy; OpenStreetMap'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          className="basemap-dim"
+          attribution="&copy; Esri"
+          url="https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+        />
+        <TileLayer
+          attribution=""
+          url="https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
         />
         {hasEvent && <Recenter lat={match!.latitude!} lng={match!.longitude!} />}
 
