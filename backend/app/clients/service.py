@@ -14,6 +14,7 @@ _CLIENTS = [
     {"name": "Aster Retail Group",      "industry": "Retail",        "description": "Consumer retail chain with regional hubs."},
     {"name": "Pacific Health Response", "industry": "Healthcare",    "description": "Global health supply and emergency response."},
     {"name": "Summit Manufacturing",    "industry": "Manufacturing", "description": "Heavy manufacturing with western North American facilities."},
+    {"name": "Dvina Logistics",         "industry": "Logistics",     "description": "Eastern European freight and warehousing operator."},
 ]
 
 _ASSETS = [
@@ -47,6 +48,7 @@ _ASSETS = [
     {"client": "Pacific Health Response","name": "Mumbai Health Hub",          "asset_type": "health_supply_hub",   "latitude": 19.0760, "longitude":  72.8777, "city": "Mumbai",      "region": "Maharashtra",    "country": "India",       "criticality": "high"},     # art 18: Mumbai blasts
     {"client": "Northline Logistics", "name": "Moscow Logistics Office",       "asset_type": "office",              "latitude": 55.7558, "longitude":  37.6173, "city": "Moscow",      "region": "Moscow",         "country": "Russia",      "criticality": "medium"},   # art 5: Moscow train bombing
     {"client": "Northline Logistics", "name": "Minsk Depot",                   "asset_type": "distribution_center", "latitude": 53.9006, "longitude":  27.5590, "city": "Minsk",       "region": "Minsk",          "country": "Belarus",     "criticality": "medium"},   # art 2: Belarus subway bombing
+    {"client": "Dvina Logistics",     "name": "Minsk Operations Center",       "asset_type": "warehouse",           "latitude": 53.8650, "longitude":  27.6100, "city": "Minsk",       "region": "Minsk",          "country": "Belarus",     "criticality": "high"},     # art 2: 2nd asset near Minsk -> 2 matches
     {"client": "Aster Retail Group",  "name": "Fukuoka Retail Office",        "asset_type": "retail_hub",          "latitude": 33.5904, "longitude": 130.4017, "city": "Fukuoka",     "region": "Kyushu",         "country": "Japan",       "criticality": "medium"},   # art 7: southern Japan earthquake (300km radius)
     {"client": "HarbourGrid Energy",  "name": "Karachi Energy Office",        "asset_type": "office",              "latitude": 24.8607, "longitude":  67.0011, "city": "Karachi",     "region": "Sindh",          "country": "Pakistan",    "criticality": "high"},     # art 6: Karachi base attack
 ]
@@ -54,7 +56,9 @@ _ASSETS = [
 
 def seed_clients_and_assets(db: Session) -> tuple[int, int]:
     """Wipe and re-seed all demo clients and assets. Safe to call multiple times."""
-    # event_asset_impacts references both tables — clear it first to satisfy FKs.
+    # FK chain: client_alerts -> event_asset_impacts -> clients/client_assets.
+    # Delete children first so the parent deletes don't violate constraints.
+    db.execute(text("DELETE FROM client_alerts"))
     db.execute(text("DELETE FROM event_asset_impacts"))
     db.query(ClientAsset).delete()
     db.query(Client).delete()

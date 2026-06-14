@@ -358,11 +358,11 @@ Event type aliases (normalisation):
 
 ### Demo Seed Data
 
-5 fictional clients, 24 assets. Assets are deliberately placed at city centres where the early Wikinews demo articles and EONET wildfires occur, so the demo produces reliable matches:
+6 fictional clients, 25 assets. Assets are deliberately placed at city centres where the early Wikinews demo articles and EONET wildfires occur, so the demo produces reliable matches:
 
 - **Idaho Field Site / Boise** → EONET Idaho wildfires (events 1, 2, 5, 6)
 - **Jerusalem Regional Office** → article 0 (Jerusalem bus bombing)
-- **Minsk Depot** → article 2 (Belarus subway bombing)
+- **Minsk Depot** (Northline) + **Minsk Operations Center** (Dvina Logistics) → article 2 (Belarus subway bombing) — two assets near Minsk produce 2 matches / 2 alerts
 - **Islamabad Field Office** → article 4 (Bhutto, Rawalpindi ~15km)
 - **Moscow Logistics Office** → article 5 (Moscow train bombing)
 - **Karachi Energy Office** → article 6 (Karachi base attack)
@@ -375,9 +375,9 @@ Article 3 (BBC poll commentary) is deliberately left uncovered — it demonstrat
 
 ### DB Tables
 
-**`clients`** — 5 fictional companies (name, industry, description)
+**`clients`** — 6 fictional companies (name, industry, description)
 
-**`client_assets`** — 24 assets (lat/lon, asset_type, criticality, client_id)
+**`client_assets`** — 25 assets (lat/lon, asset_type, criticality, client_id)
 
 **`event_asset_impacts`** — one row per matched (event, asset) pair. Stores distance, radius, risk_level, and match_reason.
 

@@ -23,6 +23,7 @@ _CLIENTS = [
     {"name": "Aster Retail Group",      "industry": "Retail",        "description": "Consumer retail chain with regional hubs."},
     {"name": "Pacific Health Response", "industry": "Healthcare",    "description": "Global health supply and emergency response."},
     {"name": "Summit Manufacturing",    "industry": "Manufacturing", "description": "Heavy manufacturing with western North American facilities."},
+    {"name": "Dvina Logistics",         "industry": "Logistics",     "description": "Eastern European freight and warehousing operator."},
 ]
 
 _ASSETS = [
@@ -55,6 +56,7 @@ _ASSETS = [
     {"client": "Pacific Health Response","name": "Mumbai Health Hub",          "asset_type": "health_supply_hub",   "latitude": 19.0760, "longitude":  72.8777, "city": "Mumbai",      "region": "Maharashtra",    "country": "India",       "criticality": "high"},
     {"client": "Northline Logistics", "name": "Moscow Logistics Office",       "asset_type": "office",              "latitude": 55.7558, "longitude":  37.6173, "city": "Moscow",      "region": "Moscow",         "country": "Russia",      "criticality": "medium"},
     {"client": "Northline Logistics", "name": "Minsk Depot",                   "asset_type": "distribution_center", "latitude": 53.9006, "longitude":  27.5590, "city": "Minsk",       "region": "Minsk",          "country": "Belarus",     "criticality": "medium"},
+    {"client": "Dvina Logistics",     "name": "Minsk Operations Center",       "asset_type": "warehouse",           "latitude": 53.8650, "longitude":  27.6100, "city": "Minsk",       "region": "Minsk",          "country": "Belarus",     "criticality": "high"},
     {"client": "Aster Retail Group",  "name": "Fukuoka Retail Office",        "asset_type": "retail_hub",          "latitude": 33.5904, "longitude": 130.4017, "city": "Fukuoka",     "region": "Kyushu",         "country": "Japan",       "criticality": "medium"},
     {"client": "HarbourGrid Energy",  "name": "Karachi Energy Office",        "asset_type": "office",              "latitude": 24.8607, "longitude":  67.0011, "city": "Karachi",     "region": "Sindh",          "country": "Pakistan",    "criticality": "high"},
 ]

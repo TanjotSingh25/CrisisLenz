@@ -241,7 +241,7 @@ curl -X POST http://localhost:8000/clients/seed
 ```
 Expected:
 ```json
-{ "clients_seeded": 5, "assets_seeded": 24 }
+{ "clients_seeded": 6, "assets_seeded": 25 }
 ```
 
 ### Curated demo sequence — covers all cases
@@ -565,4 +565,4 @@ Click **Auto-run Demo** to watch the four steps run automatically with short pau
 ### Troubleshooting
 - **"Cannot reach the backend"** toast → backend isn't running, or `VITE_API_BASE_URL` is wrong.
 - **Gemini analysis fails** → `GEMINI_API_KEY` missing in the backend `.env` (see Module 3).
-- **Empty map / no matches** → the event had no coordinates, or no assets are within range. Run `POST /clients/seed` once to ensure 24 assets exist.
+- **Empty map / no matches** → the event had no coordinates, or no assets are within range. Run `POST /clients/seed` once to ensure 25 assets exist.
