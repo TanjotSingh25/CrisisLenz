@@ -8,6 +8,7 @@ from app.alerts.schemas import (
     GenerateForEventResponse,
     GeneratePendingResponse,
 )
+from app.common.enums import AlertStatus, Severity
 from app.database import get_db
 from app.replay.schemas import MessageResponse
 
@@ -34,14 +35,20 @@ def alerts_summary(db: Session = Depends(get_db)):
 
 @router.get("", response_model=list[AlertOut])
 def list_alerts(
-    status: str | None = Query(default=None),
+    status: AlertStatus | None = Query(default=None),
     client_id: int | None = Query(default=None),
     event_id: int | None = Query(default=None),
-    risk_level: str | None = Query(default=None),
+    risk_level: Severity | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
     """List alerts, optionally filtered by status, client, event, or risk level."""
-    return service.list_alerts(db, status, client_id, event_id, risk_level)
+    return service.list_alerts(
+        db,
+        status.value if status else None,
+        client_id,
+        event_id,
+        risk_level.value if risk_level else None,
+    )
 
 
 @router.get("/{alert_id}", response_model=AlertOut)

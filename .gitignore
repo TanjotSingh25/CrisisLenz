@@ -18,9 +18,19 @@ env/
 # Environment
 .env
 .env.local
+.env.*.local
 
 # Keep example env tracked
 !.env.example
+
+# Node / frontend
+node_modules/
+.vite/
+
+# Databases
+*.sqlite
+*.sqlite3
+*.db
 
 # OS
 .DS_Store

@@ -56,6 +56,42 @@ npm run dev              # http://localhost:5173
 
 ---
 
+## Security Notes
+
+Crisis Lens is a demo prototype, not a production incident-intelligence system. It includes a basic, practical hardening pass:
+
+- **Backend-only Gemini API key** — the key lives only in the backend `.env`; it is never exposed to the browser. The frontend only ever receives `VITE_API_BASE_URL`.
+- **Environment-based configuration** — secrets come from environment variables; nothing is hardcoded. `.env` is gitignored; `.env.example` ships with blank values.
+- **Restricted CORS** — no wildcard. Allowed origins come from `ALLOWED_ORIGINS`.
+- **Optional admin token** — set `DEMO_ADMIN_TOKEN` to require `X-Demo-Admin-Token` on all mutation endpoints (POST/PUT/PATCH/DELETE). Empty by default for local demos. Never put this in the frontend.
+- **Validated inputs** — source type, alert status, and severity filters are restricted to known enum values (invalid values get a 422).
+- **Clean errors** — in `production`, API responses never leak stack traces or internals; full tracebacks go to the backend logs only.
+- **No secret logging** — keys, tokens, and DB URLs are never logged; model output is logged only as a bounded preview.
+- **Prompt-injection guardrails** — the system prompt treats article text as untrusted and never follows instructions embedded in it.
+- **Frontend hygiene** — no `dangerouslySetInnerHTML`, article text rendered as plain text, external links use `rel="noopener noreferrer"`, no secrets in `localStorage`.
+- **Simulated alerting only** — no real email/Slack/SMS/webhook delivery.
+
+Run a quick secret-leak scan over tracked files:
+```bash
+bash scripts/check_no_secrets.sh
+```
+
+### Deployment checklist
+
+Before deploying publicly:
+
+- [ ] `.env` is **not** committed (verify with `git status` and `scripts/check_no_secrets.sh`)
+- [ ] `GEMINI_API_KEY` and `DATABASE_URL` are set **only** on the backend host
+- [ ] `ENVIRONMENT=production` on the backend (hides error detail, fails fast on missing secrets)
+- [ ] `ALLOWED_ORIGINS` lists **only** the deployed frontend URL
+- [ ] `DEMO_ADMIN_TOKEN` is set (and supplied via the `X-Demo-Admin-Token` header) if the deployment is public
+- [ ] Frontend build receives **only** `VITE_API_BASE_URL` — no secret `VITE_*` vars
+- [ ] No raw secrets appear in the frontend bundle
+
+Typical split: frontend on Vercel/Netlify (only `VITE_API_BASE_URL`); backend on Render/Railway/Fly (Gemini key, database URL, admin token).
+
+---
+
 ## API — Module 1
 
 ### Health

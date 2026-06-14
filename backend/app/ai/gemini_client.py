@@ -55,16 +55,18 @@ class GeminiClient:
                 raise
 
             raw_text = response.text or ""
-            logger.info("Gemini raw response from %s (%d chars): %s", model, len(raw_text), raw_text)
+            # Log only a bounded preview — never dump unbounded model output.
+            logger.info("Gemini response from %s: %d chars", model, len(raw_text))
             try:
                 return SignalAnalysisResult.model_validate_json(raw_text)
             except ValidationError as exc:
-                # Bad shape is not a quota problem — surface it, don't burn other models.
+                # Bad shape is not a quota problem — surface it, don't burn other
+                # models. Log a capped preview of the raw response to debug it.
                 logger.error(
                     "Gemini (%s) response failed schema validation.\n"
-                    "--- RAW GEMINI RESPONSE ---\n%s\n--- VALIDATION ERROR ---\n%s",
+                    "--- RAW (first 1500 chars) ---\n%s\n--- VALIDATION ERROR ---\n%s",
                     model,
-                    raw_text,
+                    raw_text[:1500],
                     exc,
                 )
                 raise

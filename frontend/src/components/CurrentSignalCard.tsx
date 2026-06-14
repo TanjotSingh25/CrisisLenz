@@ -83,7 +83,7 @@ export function CurrentSignalCard({
           <a
             href={signal.url}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300"
           >
             <ExternalLink className="h-3 w-3" /> Source Evidence
