@@ -59,7 +59,7 @@ export function ImpactPanel({
               </EmptyState>
             ) : (
               <div className="space-y-2">
-                <div className="text-[11px] uppercase tracking-wide text-slate-500">Affected Client Assets</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-cyan-400/80">Affected Client Assets</div>
                 {match.affected_assets.map((a) => (
                   <div key={a.impact_id} className="rounded-lg border border-ink-600 bg-ink-800 p-3">
                     <div className="mb-1 flex items-center justify-between gap-2">
@@ -87,10 +87,10 @@ export function ImpactPanel({
   );
 }
 
-function Stat({ label, value, accent = "text-slate-200" }: { label: string; value: string; accent?: string }) {
+function Stat({ label, value, accent = "text-slate-100" }: { label: string; value: string; accent?: string }) {
   return (
-    <div className="rounded-lg border border-ink-600 bg-ink-900/50 px-2 py-2">
-      <div className="text-[10px] uppercase tracking-wide text-slate-500">{label}</div>
+    <div className="rounded-lg border-2 border-ink-600 bg-ink-900/50 px-2 py-2">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-cyan-400/80">{label}</div>
       <div className={`text-sm font-semibold ${accent}`}>{value}</div>
     </div>
   );
