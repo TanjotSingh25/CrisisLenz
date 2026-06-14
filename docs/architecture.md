@@ -540,7 +540,10 @@ React Leaflet with a dark CartoDB basemap. Uses `CircleMarker`/`Circle` (pure SV
 | `POSTGRES_DB` | — | Yes |
 | `GEMINI_API_KEY` | `""` | Yes for Module 3 |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | No |
+| `GEMINI_FALLBACK_MODELS` | `gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite` | No |
 | `VITE_API_BASE_URL` | `http://localhost:8000` | No (frontend) |
+
+**Model fallback:** each call tries `GEMINI_MODEL` first; on a rate-limit (429) it falls through the `GEMINI_FALLBACK_MODELS` list in order (each model has its own free-tier quota bucket). If every model is rate-limited, the API returns `503` and the signal stays `released` for retry (not marked `failed`). Non-quota errors are raised immediately without trying other models.
 
 ---
 
